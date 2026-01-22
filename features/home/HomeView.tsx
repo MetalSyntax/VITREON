@@ -6,62 +6,88 @@ interface HomeViewProps {
     notes: Note[];
     categories: Category[];
     onNoteClick: (note: Note) => void;
+    showFavorites: boolean;
+    onToggleFavorites: () => void;
     showArchived: boolean;
     onToggleArchive: () => void;
 }
 
-export const HomeView: React.FC<HomeViewProps> = ({ notes, categories, onNoteClick, showArchived, onToggleArchive }) => {
+export const HomeView: React.FC<HomeViewProps> = ({ 
+    notes, categories, onNoteClick, 
+    showFavorites, onToggleFavorites,
+    showArchived, onToggleArchive
+}) => {
     const [searchQuery, setSearchQuery] = useState('');
 
-    let filtered = notes.filter(n => n.isArchived === showArchived);
+    // Filtering logic:
+    // 1. If showFavorites is true, show only pinned notes.
+    // 2. If showArchived is true, show only archived notes.
+    // 3. Otherwise, show only non-archived notes.
+    let filtered = notes;
+    if (showFavorites) {
+        filtered = filtered.filter(n => n.isPinned);
+    } else if (showArchived) {
+        filtered = filtered.filter(n => n.isArchived);
+    } else {
+        filtered = filtered.filter(n => !n.isArchived);
+    }
+    
     if (searchQuery) {
         filtered = filtered.filter(n => 
             n.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
             (!n.isLocked && n.content.toLowerCase().includes(searchQuery.toLowerCase()))
         );
     }
-    const pinned = filtered.filter(n => n.isPinned);
-    const recent = filtered.filter(n => !n.isPinned);
+
+    const pinned = !showFavorites && !showArchived ? filtered.filter(n => n.isPinned) : [];
+    const mainList = !showFavorites && !showArchived ? filtered.filter(n => !n.isPinned) : filtered;
+
+    const getTitle = () => {
+        if (showFavorites) return 'Favorites';
+        if (showArchived) return 'Archive';
+        return 'Vitreon';
+    };
 
     return (
-        <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-24">
-            <div className="sticky top-0 z-10 p-6 pb-2 glass-blur backdrop-blur-xl">
-                <div className="flex justify-between items-center mb-4">
-                    <h1 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">{showArchived ? 'Archive' : 'Lumina'}</h1>
-                    <button onClick={onToggleArchive} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-slate-600 dark:text-slate-300">
-                        <span className="material-symbols-rounded">{showArchived ? 'inbox' : 'archive'}</span>
-                    </button>
-                </div>
-                <div className="relative">
-                    <span className="absolute left-4 top-3.5 material-symbols-rounded text-slate-400">search</span>
+        <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-32 pt-2">
+            <div className="px-6 mb-8">
+                <div className="relative group">
+                    <span className="absolute left-5 top-4 material-symbols-rounded text-slate-500 group-focus-within:text-indigo-400 transition-colors">search</span>
                     <input
-                        type="text" placeholder={showArchived ? "Search archive..." : "Search notes..."}
+                        type="text" placeholder="Smart Search..."
                         value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-12 pr-4 py-3 rounded-2xl bg-white/60 dark:bg-black/30 border border-white/20 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-800 dark:text-slate-100 placeholder-slate-500 dark:placeholder-slate-400 backdrop-blur-md transition-all"
+                        className="w-full pl-14 pr-12 py-4 rounded-3xl glass-card bg-white/5 border-none focus:ring-2 focus:ring-indigo-500/30 text-white placeholder-slate-500 outline-none transition-all shadow-xl"
                     />
+                    <span className="absolute right-5 top-4 material-symbols-rounded text-slate-500 hover:text-indigo-400 cursor-pointer transition-colors">mic</span>
                 </div>
             </div>
 
-            {!showArchived && pinned.length > 0 && (
-                <div className="mt-4 px-6">
-                    <div className="flex items-center justify-between mb-3"><h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Pinned</h2></div>
-                    <div className="flex overflow-x-auto gap-4 pb-4 no-scrollbar snap-x">
+            {!showFavorites && !showArchived && pinned.length > 0 && (
+                <div className="mb-8">
+                    <div className="flex items-center justify-between px-6 mb-4">
+                        <h2 className="text-lg font-bold text-white tracking-tight">Pinned Notes</h2>
+                        <button className="text-sm font-semibold text-indigo-400 hover:text-indigo-300 transition-colors">View all</button>
+                    </div>
+                    <div className="flex overflow-x-auto gap-5 px-6 pb-4 no-scrollbar snap-x">
                         {pinned.map(note => <NoteCard key={note.id} note={note} category={categories.find(c => c.id === note.category)} onClick={() => onNoteClick(note)} layout="carousel" />)}
                     </div>
                 </div>
             )}
 
-            <div className="mt-2 px-6">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">{showArchived ? 'Archived Notes' : 'Recent'}</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {recent.map(note => <NoteCard key={note.id} note={note} category={categories.find(c => c.id === note.category)} onClick={() => onNoteClick(note)} layout="grid" />)}
-                    {recent.length === 0 && pinned.length === 0 && (
-                        <div className="col-span-full flex flex-col items-center justify-center py-20 opacity-40">
-                            <span className="material-symbols-rounded text-6xl mb-4 text-slate-400 dark:text-slate-600">stylus_note</span>
-                            <p className="text-slate-500 dark:text-slate-400">{showArchived ? "Archive is empty" : "Start your first thought."}</p>
-                        </div>
-                    )}
-                </div>
+            <div className="px-6 mb-4">
+                <h2 className="text-lg font-bold text-white tracking-tight">{showFavorites ? 'Fixed Favorites' : showArchived ? 'Archived Notes' : 'Recent Notes'}</h2>
+            </div>
+            
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 px-6 pb-20">
+                {mainList.map(note => <NoteCard key={note.id} note={note} category={categories.find(c => c.id === note.category)} onClick={() => onNoteClick(note)} layout="grid" />)}
+                {mainList.length === 0 && pinned.length === 0 && (
+                    <div className="col-span-full flex flex-col items-center justify-center py-20 opacity-30">
+                        <span className="material-symbols-rounded text-6xl mb-4 text-slate-400">stylus_note</span>
+                        <p className="text-slate-400 font-medium">
+                            {showFavorites ? "No favorites yet" : showArchived ? "Archive is empty" : "Start your first thought."}
+                        </p>
+                    </div>
+                )}
             </div>
         </div>
     );

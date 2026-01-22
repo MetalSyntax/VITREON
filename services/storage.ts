@@ -1,6 +1,6 @@
 import { Note } from '../types';
 
-const DB_NAME = 'LuminaNotesDB';
+const DB_NAME = 'VitreonNotesDB';
 const STORE_NAME = 'notes';
 const DB_VERSION = 1;
 
@@ -8,7 +8,7 @@ const DB_VERSION = 1;
 
 // Generate a key or retrieve existing one (simulated device key for demo)
 const getCryptoKey = async (): Promise<CryptoKey> => {
-    const rawKey = localStorage.getItem('lumina_enc_key');
+    const rawKey = localStorage.getItem('vitreon_enc_key');
     if (rawKey) {
         return window.crypto.subtle.importKey(
             "jwk",
@@ -24,7 +24,7 @@ const getCryptoKey = async (): Promise<CryptoKey> => {
             ["encrypt", "decrypt"]
         );
         const exported = await window.crypto.subtle.exportKey("jwk", key);
-        localStorage.setItem('lumina_enc_key', JSON.stringify(exported));
+        localStorage.setItem('vitreon_enc_key', JSON.stringify(exported));
         return key;
     }
 };
@@ -143,7 +143,7 @@ export const deleteNote = async (id: string): Promise<void> => {
 export const exportDataToJSON = async (): Promise<string> => {
     const notes = await getNotes();
     const data = {
-        app: "LuminaNotes",
+        app: "VitreonNotes",
         version: 1,
         exportedAt: Date.now(),
         notes
@@ -154,7 +154,7 @@ export const exportDataToJSON = async (): Promise<string> => {
 export const importDataFromJSON = async (jsonString: string): Promise<number> => {
     try {
         const data = JSON.parse(jsonString);
-        if (data.app !== "LuminaNotes" || !Array.isArray(data.notes)) {
+        if (data.app !== "VitreonNotes" || !Array.isArray(data.notes)) {
             throw new Error("Invalid format");
         }
         let count = 0;
