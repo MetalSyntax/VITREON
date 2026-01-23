@@ -24,6 +24,7 @@ const DEFAULT_CATEGORY = 'uncategorized';
 export default function App() {
     const [theme, setTheme] = useState<ThemeMode>('dark');
     const [view, setView] = useState<'home' | 'editor' | 'categories' | 'settings' | 'profile'>('home');
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [notes, setNotes] = useState<Note[]>([]);
     const [categories, setCategories] = useState<Category[]>(CATEGORIES);
     const [currentNote, setCurrentNote] = useState<Note | null>(null);
@@ -100,6 +101,12 @@ export default function App() {
         showToast(updated.isArchived ? "Archived." : "Unarchived.");
     };
 
+    const handlePinNote = async (note: Note) => {
+        const updated = { ...note, isPinned: !note.isPinned };
+        await handleSaveNote(updated);
+        showToast(updated.isPinned ? "Pinned." : "Unpinned.");
+    };
+
     // Locking Logic
     const initiateLock = (note: Note) => {
         if (note.isLocked) {
@@ -142,14 +149,45 @@ export default function App() {
         reader.onload = async (event) => {
             if (event.target?.result) {
                 try {
-                    const count = await importDataFromJSON(event.target.result as string);
-                    setNotes(await getNotes());
-                    showToast(`Imported ${count} notes.`);
+                    const content = event.target.result as string;
+                    if (file.name.endsWith('.md')) {
+                        const newNote: Note = {
+                            id: crypto.randomUUID(),
+                            title: file.name.replace('.md', ''),
+                            content: content,
+                            category: DEFAULT_CATEGORY,
+                            isPinned: false, isArchived: false, isLocked: false, isChecklist: false,
+                            tags: [], images: [], drawings: [], voiceNotes: [],
+                            createdAt: Date.now(), updatedAt: Date.now()
+                        };
+                        await saveNote(newNote);
+                        setNotes(await getNotes());
+                        showToast("Imported Markdown note.");
+                    } else {
+                        const count = await importDataFromJSON(content);
+                        setNotes(await getNotes());
+                        showToast(`Imported ${count} notes.`);
+                    }
                 } catch { showToast("Import failed."); }
             }
             e.target.value = '';
         };
         reader.readAsText(file);
+    };
+
+    const handleExportMarkdown = async () => {
+        const notesToExport = notes.filter(n => !n.isArchived);
+        if (notesToExport.length === 0) return showToast("No notes to export.");
+        
+        notesToExport.forEach(note => {
+            const blob = new Blob([note.content], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${note.title || 'Untitled'}.md`;
+            a.click();
+        });
+        showToast(`Exported ${notesToExport.length} files.`);
     };
 
     const handleAddCategory = (cat: Category) => {
@@ -180,13 +218,15 @@ export default function App() {
                             onClick={() => setView('profile')}
                             className="w-11 h-11 rounded-2xl glass-card flex items-center justify-center cursor-pointer overflow-hidden group hover:border-indigo-500/50 transition-all"
                         >
-                             <span className="material-symbols-rounded text-slate-300 group-hover:text-indigo-400">account_circle</span>
+                             <span className="material-symbols-rounded text-slate-600 dark:text-slate-300 group-hover:text-indigo-400">account_circle</span>
                         </div>
-                        <h1 className="text-xl font-bold tracking-tight text-white">{view === 'home' ? (showFavorites ? 'Favorites' : showArchived ? 'Archive' : 'My Notes') : view.charAt(0).toUpperCase() + view.slice(1)}</h1>
-                        <div className="w-11 h-11 rounded-2xl glass-card flex items-center justify-center cursor-pointer">
-                            <span className="material-symbols-rounded text-slate-300">notifications</span>
-                            <div className="absolute top-2 right-2 w-2.5 h-2.5 bg-indigo-500 rounded-full border-2 border-[#1e1b4b]"></div>
-                        </div>
+                        <h1 className="text-xl font-bold tracking-tight text-slate-800 dark:text-white">{view === 'home' ? (showFavorites ? 'Favorites' : showArchived ? 'Archive' : 'My Notes') : view.charAt(0).toUpperCase() + view.slice(1)}</h1>
+                        <button 
+                            onClick={() => { setShowArchived(!showArchived); setShowFavorites(false); setView('home'); }}
+                            className={`w-11 h-11 rounded-2xl glass-card flex items-center justify-center cursor-pointer transition-all ${showArchived ? 'bg-indigo-500 text-white border-indigo-500' : 'text-slate-600 dark:text-slate-300'}`}
+                        >
+                            <span className="material-symbols-rounded">{showArchived ? 'unarchive' : 'archive'}</span>
+                        </button>
                     </div>
                 )}
 
@@ -194,24 +234,35 @@ export default function App() {
                     {view === 'home' && (
                         <HomeView 
                             notes={notes} categories={categories} onNoteClick={handleNoteClick} 
-                            showFavorites={showFavorites} onToggleFavorites={() => { setShowFavorites(!showFavorites); setShowArchived(false); }} 
-                            showArchived={showArchived} onToggleArchive={() => { setShowArchived(!showArchived); setShowFavorites(false); }}
+                            showFavorites={showFavorites} onToggleFavorites={() => { setShowFavorites(!showFavorites); setShowArchived(false); setSelectedCategory(null); }} 
+                            showArchived={showArchived} onToggleArchive={() => { setShowArchived(!showArchived); setShowFavorites(false); setSelectedCategory(null); }}
+                            selectedCategory={selectedCategory} onClearCategory={() => setSelectedCategory(null)}
+                            onPinNote={handlePinNote}
                         />
                     )}
-                    {view === 'categories' && <CategoriesView categories={categories} notes={notes} onCategoryClick={(c) => { showToast(`Filtered by ${c.name}`); setView('home'); setShowFavorites(false); setShowArchived(false); }} onAddCategory={handleAddCategory} onDeleteCategory={handleDeleteCategory} />}
+                    {view === 'categories' && <CategoriesView categories={categories} notes={notes} onCategoryClick={(c) => { setSelectedCategory(c.id); setView('home'); setShowFavorites(false); setShowArchived(false); }} onAddCategory={handleAddCategory} onDeleteCategory={handleDeleteCategory} />}
                     {view === 'settings' && <SettingsView theme={theme} setTheme={setTheme} onExport={() => { exportDataToJSON().then(json => { const blob = new Blob([json], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `vitreon_backup_${new Date().toISOString().slice(0, 10)}.json`; a.click(); showToast("Exported."); }); }} onImport={handleImport} />}
-                    {view === 'profile' && <ProfileView onBack={() => setView('home')} />}
+                    {view === 'profile' && (
+                        <ProfileView 
+                            notesCount={notes.length} 
+                            categoriesCount={categories.length} 
+                            onBack={() => setView('home')} 
+                            onExportMD={handleExportMarkdown}
+                            onImportMD={() => document.getElementById('md-import')?.click()}
+                        />
+                    )}
                     {view === 'editor' && currentNote && (
                         <NoteEditor 
                             initialNote={currentNote} categories={categories}
-                            onSave={handleSaveNote} onDelete={handleDeleteNote} onArchive={handleArchiveNote} onLock={initiateLock}
+                            onSave={handleSaveNote} onDelete={handleDeleteNote} 
+                            onArchive={handleArchiveNote} onPin={handlePinNote} onLock={initiateLock}
                             onBack={() => setView('home')}
                         />
                     )}
                 </div>
 
                 {(view !== 'editor' && view !== 'profile') && (
-                    <div className="h-24 absolute bottom-0 left-0 right-0 glass-blur rounded-t-[40px] flex items-center justify-around px-8 z-20 pb-8 border-t border-white/5">
+                    <div className="h-20 absolute bottom-0 left-0 right-0 glass-blur rounded-t-[40px] flex items-center justify-around px-8 z-20 border-t border-white/5">
                         <button onClick={() => {setView('home'); setShowFavorites(false); setShowArchived(false);}} className={`p-3 rounded-2xl transition-all ${view === 'home' && !showFavorites && !showArchived ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
                             <span className="material-symbols-rounded text-2xl" style={{ fontVariationSettings: view === 'home' && !showFavorites && !showArchived ? "'FILL' 1" : "'FILL' 0" }}>home</span>
                         </button>
@@ -243,6 +294,7 @@ export default function App() {
                 onConfirm={confirmDelete} 
                 onCancel={() => setConfirmModal({ open: false })} 
             />
+            <input type="file" id="md-import" className="hidden" accept=".md,.json" onChange={handleImport} />
             {toastMsg && <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-full glass-panel shadow-xl text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2 animate-in fade-in slide-in-from-top-2"><span className="material-symbols-rounded text-green-500 text-lg">check_circle</span>{toastMsg}</div>}
         </div>
     );
