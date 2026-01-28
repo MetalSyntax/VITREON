@@ -14,6 +14,7 @@ interface HomeViewProps {
     selectedCategory: string | null;
     onClearCategory: () => void;
     onPinNote: (note: Note) => void;
+    onReorderNotes: (reorderedNotes: Note[]) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({ 
@@ -21,13 +22,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
     showFavorites, onToggleFavorites,
     showArchived, onToggleArchive,
     selectedCategory, onClearCategory,
-    onPinNote
+    onPinNote, onReorderNotes
 }) => {
     const { t, lang } = useI18n();
     const [searchQuery, setSearchQuery] = useState('');
     const [isListening, setIsListening] = useState(false);
     const [sortBy, setSortBy] = useState<'date' | 'alpha'>(localStorage.getItem('vitreon_sort') as any || 'date');
     const [layoutMode, setLayoutMode] = useState<'grid' | 'list' | 'card'>(localStorage.getItem('vitreon_layout') as any || 'grid');
+    const [draggedId, setDraggedId] = useState<string | null>(null);
+    const [dropId, setDropId] = useState<string | null>(null);
 
     // Filtering logic
     let filtered = [...notes];
@@ -90,6 +93,62 @@ export const HomeView: React.FC<HomeViewProps> = ({
             setSearchQuery(transcript);
         };
         recognition.start();
+    };
+
+    const handleDragStart = (e: React.DragEvent | React.TouchEvent, id: string) => {
+        setDraggedId(id);
+        if ('dataTransfer' in e) {
+            e.dataTransfer.effectAllowed = 'move';
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent | React.TouchEvent, id: string) => {
+        if ('preventDefault' in e) e.preventDefault();
+        if (draggedId === null || draggedId === id) return;
+        setDropId(id);
+    };
+
+    const handleDrop = (e: React.DragEvent | React.TouchEvent, targetId: string) => {
+        if ('preventDefault' in e) e.preventDefault();
+        if (draggedId === null || draggedId === targetId) {
+            setDraggedId(null);
+            setDropId(null);
+            return;
+        }
+
+        const currentList = [...mainList];
+        const draggedIndex = currentList.findIndex(n => n.id === draggedId);
+        const targetIndex = currentList.findIndex(n => n.id === targetId);
+
+        if (draggedIndex !== -1 && targetIndex !== -1) {
+            const [item] = currentList.splice(draggedIndex, 1);
+            currentList.splice(targetIndex, 0, item);
+            onReorderNotes(currentList);
+        }
+
+        setDraggedId(null);
+        setDropId(null);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        const touch = e.touches[0];
+        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+        const dropZone = element?.closest('[data-note-id]');
+        if (dropZone) {
+            const id = dropZone.getAttribute('data-note-id');
+            if (id && id !== draggedId) {
+                setDropId(id);
+            }
+        }
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        if (dropId && draggedId) {
+            handleDrop(e, dropId);
+        } else {
+            setDraggedId(null);
+            setDropId(null);
+        }
     };
 
     return (
@@ -161,7 +220,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 ${layoutMode === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4' : 'flex flex-col gap-3'}
                 ${layoutMode === 'card' ? 'max-w-2xl mx-auto w-full' : ''}
             `}>
-                {mainList.map(note => <NoteCard key={note.id} note={note} category={categories.find(c => c.id === note.category)} onClick={() => onNoteClick(note)} onPin={() => onPinNote(note)} layout={layoutMode} />)}
+                {mainList.map((note, idx) => (
+                    <div 
+                        key={note.id}
+                        draggable={!searchQuery && sortBy === 'date' && !showFavorites && !showArchived}
+                        data-note-id={note.id}
+                        onDragStart={(e) => handleDragStart(e, note.id)}
+                        onDragOver={(e) => handleDragOver(e, note.id)}
+                        onDrop={(e) => handleDrop(e, note.id)}
+                        onDragEnd={() => { setDraggedId(null); setDropId(null); }}
+                        onTouchStart={(e) => handleDragStart(e, note.id)}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                        className={`h-full transition-all duration-300 ${draggedId === note.id ? 'opacity-40 scale-95 rotate-2' : 'opacity-100'} ${dropId === note.id ? 'scale-105 rounded-[32px] ring-2 ring-indigo-500/50 p-1' : ''}`}
+                    >
+                        <NoteCard note={note} category={categories.find(c => c.id === note.category)} onClick={() => onNoteClick(note)} onPin={() => onPinNote(note)} layout={layoutMode} />
+                    </div>
+                ))}
                 {mainList.length === 0 && !pinned.length && (
                     <div className="col-span-full flex flex-col items-center justify-center py-20 opacity-30">
                         <span className="material-symbols-rounded text-6xl mb-4 text-slate-400">stylus_note</span>

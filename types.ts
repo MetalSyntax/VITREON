@@ -19,6 +19,7 @@ export interface Note {
     drawings: string[]; // Legacy
     voiceNotes: string[]; // Legacy
     attachments: Attachment[];
+    order?: number;
     createdAt: number;
     updatedAt: number;
 }

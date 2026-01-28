@@ -73,6 +73,25 @@ export default function App() {
         localStorage.setItem('vitreon_theme', theme);
     }, [theme]);
 
+    // Handle Hardware Back Button / Back Gesture
+    useEffect(() => {
+        const handlePopState = () => {
+            if (view !== 'home') {
+                setView('home');
+                setCurrentNote(null);
+            }
+        };
+
+        window.addEventListener('popstate', handlePopState);
+
+        // If we are moving away from home, push a history state
+        if (view !== 'home') {
+            window.history.pushState({ view }, '');
+        }
+
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [view]);
+
     const showToast = (msg: string) => {
         setToastMsg(msg);
         setTimeout(() => setToastMsg(null), 3000);
@@ -98,6 +117,7 @@ export default function App() {
         await saveNote(toSave);
         setNotes(await getNotes());
         setCurrentNote(null);
+        if (view !== 'home') window.history.back();
         setView('home');
         showToast(t('noteSaved'));
     };
@@ -110,7 +130,11 @@ export default function App() {
         if (!confirmModal.noteId) return;
         await deleteNote(confirmModal.noteId);
         setNotes(await getNotes());
-        if (currentNote?.id === confirmModal.noteId) { setCurrentNote(null); setView('home'); }
+        if (currentNote?.id === confirmModal.noteId) { 
+            setCurrentNote(null); 
+            if (view !== 'home') window.history.back();
+            setView('home'); 
+        }
         setConfirmModal({ open: false });
         showToast(t('noteDeleted'));
     };
@@ -349,6 +373,20 @@ export default function App() {
                             showArchived={showArchived} onToggleArchive={() => { setShowArchived(!showArchived); setShowFavorites(false); setSelectedCategory(null); }}
                             selectedCategory={selectedCategory} onClearCategory={() => setSelectedCategory(null)}
                             onPinNote={handlePinNote}
+                            onReorderNotes={async (reordered) => {
+                                // 1. Update local state immediately for snappy UI
+                                const total = reordered.length;
+                                const reorderedIds = new Set(reordered.map(n => n.id));
+                                const updatedWithOrder = reordered.map((n, i) => ({ ...n, order: total - i }));
+                                const otherNotes = notes.filter(n => !reorderedIds.has(n.id));
+                                
+                                setNotes([...updatedWithOrder, ...otherNotes]);
+
+                                // 2. Persist to DB in the background
+                                for (const n of updatedWithOrder) {
+                                    await saveNote(n);
+                                }
+                            }}
                         />
                     )}
                     {view === 'categories' && <CategoriesView categories={categories} notes={notes} onCategoryClick={(c) => { setSelectedCategory(c.id); setView('home'); setShowFavorites(false); setShowArchived(false); }} onAddCategory={handleAddCategory} onDeleteCategory={handleDeleteCategory} />}
@@ -385,7 +423,10 @@ export default function App() {
                             initialNote={currentNote} categories={categories}
                             onSave={handleSaveNote} onDelete={handleDeleteNote} 
                             onArchive={handleArchiveNote} onPin={handlePinNote} onLock={initiateLock}
-                            onBack={() => setView('home')}
+                            onBack={() => {
+                                window.history.back();
+                                setView('home');
+                            }}
                         />
                     )}
                 </div>

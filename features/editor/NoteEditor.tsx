@@ -267,11 +267,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                             <button onClick={() => applyFormatting('*')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title={t('italic')}><span className="material-symbols-rounded">format_italic</span></button>
                             <button onClick={() => applyFormatting('++', '++')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title={t('underline')}><span className="material-symbols-rounded">format_underlined</span></button>
                             <button onClick={() => applyFormatting('~~', '~~')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title="Strike"><span className="material-symbols-rounded">format_strikethrough</span></button>
-                            <button onClick={() => applyFormatting('# ')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title="H1"><span className="material-symbols-rounded">format_h1</span></button>
-                            <button onClick={() => applyFormatting('## ')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title="H2"><span className="material-symbols-rounded">format_h2</span></button>
-                            <button onClick={() => applyFormatting('### ')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title="H3"><span className="material-symbols-rounded">format_h3</span></button>
-                            <button onClick={() => applyFormatting('> ')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title="Quote"><span className="material-symbols-rounded">format_quote</span></button>
-                            <button onClick={() => applyFormatting('- ')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title="List"><span className="material-symbols-rounded">format_list_bulleted</span></button>
+                            <button onClick={() => applyFormatting('# ', '')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title="H1"><span className="material-symbols-rounded">format_h1</span></button>
+                            <button onClick={() => applyFormatting('## ', '')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title="H2"><span className="material-symbols-rounded">format_h2</span></button>
+                            <button onClick={() => applyFormatting('### ', '')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title="H3"><span className="material-symbols-rounded">format_h3</span></button>
+                            <button onClick={() => applyFormatting('> ', '')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title="Quote"><span className="material-symbols-rounded">format_quote</span></button>
+                            <button onClick={() => applyFormatting('- ', '')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title="List"><span className="material-symbols-rounded">format_list_bulleted</span></button>
                             <button onClick={() => applyFormatting('`')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title="Code"><span className="material-symbols-rounded">code</span></button>
                             <button onClick={() => applyFormatting('\n---\n')} className="p-2.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-colors" title="Line"><span className="material-symbols-rounded">horizontal_rule</span></button>
                             <button onClick={toggleChecklist} className={`p-2.5 rounded-xl transition-all ${note.isChecklist ? 'bg-indigo-500 text-white' : 'hover:bg-black/5 dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-indigo-500'}`} title={t('checklist')}><span className="material-symbols-rounded">fact_check</span></button>
@@ -326,7 +326,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 </div>
 
                 {isViewMode ? (
-                    <h1 className="text-4xl font-bold text-slate-800 dark:text-white mb-6 tracking-tight leading-tight">{note.title || t('untitled')}</h1>
+                    <h1 className="text-4xl font-bold text-slate-800 dark:text-white tracking-tight leading-tight">{note.title || t('untitled')}</h1>
                 ) : (
                     <input
                         className="w-full bg-transparent text-4xl font-bold placeholder-slate-300 dark:placeholder-slate-700 border-none focus:ring-0 outline-none p-0 mb-6 text-slate-800 dark:text-white tracking-tight  stagger-1"
@@ -506,20 +506,22 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
             </div>
 
             {/* Floating Action Buttons */}
-            <div className="absolute bottom-10 right-8 flex flex-col gap-4 animate-in slide-in-from-right-8 duration-500">
-                <button 
-                    onClick={onBack}
-                    className="w-14 h-14 rounded-[22px] glass-panel flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-all shadow-xl bg-white dark:bg-transparent hover:scale-110 active:scale-90"
-                >
-                    <span className="material-symbols-rounded text-3xl">close</span>
-                </button>
-                <button 
-                    onClick={triggerSave}
-                    className="w-15 h-15 rounded-[24px] bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white flex items-center justify-center shadow-2xl shadow-indigo-500/40 hover:scale-110 active:scale-90 transition-all border-4 border-white dark:border-white/10"
-                >
-                    <span className="material-symbols-rounded text-4xl font-bold">check</span>
-                </button>
-            </div>
+            {!isViewMode && (
+                <div className="absolute bottom-10 right-8 flex flex-col gap-4 animate-in slide-in-from-right-8 duration-500">
+                    <button 
+                        onClick={onBack}
+                        className="w-14 h-14 rounded-[22px] glass-panel flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-indigo-500 transition-all shadow-xl bg-white dark:bg-transparent hover:scale-110 active:scale-90"
+                    >
+                        <span className="material-symbols-rounded text-3xl">close</span>
+                    </button>
+                    <button 
+                        onClick={triggerSave}
+                        className="w-15 h-15 rounded-[24px] bg-gradient-to-tr from-indigo-500 to-indigo-600 text-white flex items-center justify-center shadow-2xl shadow-indigo-500/40 hover:scale-110 active:scale-90 transition-all border-4 border-white dark:border-white/10"
+                    >
+                        <span className="material-symbols-rounded text-4xl font-bold">check</span>
+                    </button>
+                </div>
+            )}
 
             <DrawingModal 
                 isOpen={isDrawingOpen} 

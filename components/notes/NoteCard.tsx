@@ -20,10 +20,10 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
     return (
         <div 
             onClick={onClick}
-            className={`glass-card rounded-[32px] cursor-pointer p-0 overflow-hidden relative group transition-all hover:scale-[1.02] active:scale-[0.98]
-            ${isCarousel ? 'snap-start min-w-[280px] h-64' : ''}
-            ${isList ? 'flex flex-row items-center h-24 mb-2' : ''}
-            ${isCard ? 'flex flex-col h-auto mb-4' : ''}
+            className={`glass-card rounded-[32px] cursor-pointer p-0 overflow-hidden relative group transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0
+            ${isCarousel ? 'snap-start w-[280px] h-64' : ''}
+            ${isList ? 'flex flex-row items-center h-24 mb-2 w-full' : ''}
+            ${isCard ? 'flex flex-col h-auto mb-4 w-full' : ''}
             ${layout === 'grid' ? 'flex flex-col h-full' : ''}`}
         >
             {/* Quick Pin Toggle */}

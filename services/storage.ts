@@ -164,8 +164,13 @@ export const getNotes = async (): Promise<Note[]> => {
 
                 return { ...rec, title, content };
             }));
-            // Sort by updated descending
-            resolve(decryptedNotes.sort((a, b) => b.updatedAt - a.updatedAt));
+            // Sort by manual order (if exists) then by updated descending
+            resolve(decryptedNotes.sort((a, b) => {
+                const orderA = a.order ?? 0;
+                const orderB = b.order ?? 0;
+                if (orderA !== orderB) return orderB - orderA;
+                return b.updatedAt - a.updatedAt;
+            }));
         };
         request.onerror = () => reject(request.error);
     });
