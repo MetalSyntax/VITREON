@@ -49,21 +49,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onComp
                             <span className="material-symbols-rounded group-hover:translate-x-2 transition-transform">arrow_forward</span>
                         </button>
 
-                        <button 
-                            onClick={() => fileInputRef.current?.click()}
-                            className="w-full group relative flex items-center justify-between p-6 bg-white/50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-[32px] hover:scale-[1.02] active:scale-95 transition-all text-left"
-                        >
-                            <div className="flex items-center gap-5">
-                                <div className="w-12 h-12 bg-indigo-500/10 text-indigo-500 rounded-2xl flex items-center justify-center">
-                                    <span className="material-symbols-rounded text-2xl">cloud_download</span>
-                                </div>
-                                <div>
-                                    <div className="font-black text-lg text-slate-800 dark:text-white uppercase tracking-wider">{t('importGDrive')}</div>
-                                    <div className="text-slate-500 dark:text-slate-400 text-sm font-medium">{t('importGDriveDesc')}</div>
-                                </div>
-                            </div>
-                            <span className="material-symbols-rounded text-slate-300 group-hover:translate-x-2 transition-transform">cloud_sync</span>
-                        </button>
+
                     </div>
                     
                     <input 
