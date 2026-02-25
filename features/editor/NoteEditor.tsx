@@ -132,7 +132,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         } else {
             lines[idx] = '[x] ' + line;
         }
-        setNote({ ...note, content: lines.join('\n') });
+        const updatedContent = lines.join('\n');
+        const updatedNote = { ...note, content: updatedContent, updatedAt: Date.now() };
+        setNote(updatedNote);
+        if (isViewMode) {
+            onSave(updatedNote);
+        }
     };
 
     // Unified Drag and Drop Logic (Touch & Mouse)
@@ -346,9 +351,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                                 return (
                                     <div key={idx} className="flex items-center gap-4 group">
                                         <button 
-                                            disabled={isViewMode}
                                             onClick={() => toggleCheckItem(idx)}
-                                            className={`w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center shrink-0 ${isChecked ? 'bg-indigo-500 border-indigo-500' : 'border-indigo-500/30'} ${isViewMode ? 'cursor-default' : 'cursor-pointer'}`}
+                                            className={`w-6 h-6 rounded-lg border-2 transition-all flex items-center justify-center shrink-0 ${isChecked ? 'bg-indigo-500 border-indigo-500' : 'border-indigo-500/30'} cursor-pointer`}
                                         >
                                             {isChecked && <span className="material-symbols-rounded text-white text-lg font-bold">check</span>}
                                         </button>
@@ -396,7 +400,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                         ) : (
                             <textarea
                                 ref={textareaRef}
-                                className="w-full min-h-[30vh] bg-transparent resize-none border-none focus:ring-0 outline-none p-0 text-xl leading-relaxed text-slate-700 dark:text-slate-300 placeholder-slate-300 dark:placeholder-slate-700 font-medium  stagger-2"
+                                className="w-full min-h-[40vh] bg-transparent resize-none border-none focus:ring-0 outline-none p-0 text-xl leading-relaxed text-slate-700 dark:text-slate-300 placeholder-slate-300 dark:placeholder-slate-700 font-medium  stagger-2"
                                 placeholder={t('content')}
                                 value={note.content}
                                 onChange={e => setNote({ ...note, content: e.target.value })}
@@ -471,7 +475,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
                     {/* Tags */}
                     {(note.tags.length > 0 || !isViewMode) && (
-                        <div className="flex flex-wrap gap-3 mt-10 stagger-4">
+                        <div className="flex flex-wrap gap-3 mt-4 stagger-4">
                             {note.tags.map(tag => (
                                 <div key={tag} className="flex items-center gap-2 px-4 py-2 rounded-full glass-panel bg-white dark:bg-white/5 border-black/5 dark:border-white/5 text-slate-600 dark:text-slate-400 text-[10px] font-bold uppercase tracking-widest group shadow-sm transition-all hover:border-indigo-500/30">
                                     <span className="material-symbols-rounded text-[14px] opacity-60 text-indigo-500">sell</span>

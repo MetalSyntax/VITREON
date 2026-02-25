@@ -22,6 +22,7 @@ export interface Note {
     order?: number;
     createdAt: number;
     updatedAt: number;
+    deletedAt?: number;
 }
 
 export interface Category {

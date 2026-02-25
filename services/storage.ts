@@ -176,6 +176,29 @@ export const getNotes = async (): Promise<Note[]> => {
     });
 };
 
+export const cleanupTrash = async (): Promise<void> => {
+    const db = await openDB();
+    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.getAll();
+        
+        request.onsuccess = () => {
+            const records = request.result;
+            records.forEach((rec: Note) => {
+                if (rec.deletedAt && rec.deletedAt < thirtyDaysAgo) {
+                    store.delete(rec.id);
+                }
+            });
+        };
+        
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+    });
+};
+
 export const deleteNote = async (id: string): Promise<void> => {
     const db = await openDB();
     return new Promise((resolve, reject) => {

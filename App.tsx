@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Note, Category, ThemeMode } from './types';
-import { saveNote, getNotes, deleteNote, exportDataToJSON, importDataFromJSON } from './services/storage';
+import { saveNote, getNotes, deleteNote, exportDataToJSON, importDataFromJSON, cleanupTrash } from './services/storage';
 import { PinModal } from './components/modals/PinModal';
 import { ConfirmModal } from './components/modals/ConfirmModal';
 import { HomeView } from './features/home/HomeView';
@@ -11,6 +11,7 @@ import { ProfileView } from './features/profile/ProfileView';
 import { useI18n } from './services/i18n';
 import { BiometricsService } from './services/biometrics';
 import { OnboardingModal } from './components/modals/OnboardingModal';
+import { GDPRModal } from './components/modals/GDPRModal';
 
 // --- Constants ---
 const CATEGORIES = (t: any): Category[] => [
@@ -39,7 +40,8 @@ export default function App() {
     const [toastMsg, setToastMsg] = useState<string | null>(null);
     const [showFavorites, setShowFavorites] = useState(false);
     const [showArchived, setShowArchived] = useState(false);
-    const [confirmModal, setConfirmModal] = useState<{ open: boolean, noteId?: string }>({ open: false });
+    const [showTrash, setShowTrash] = useState(false);
+    const [confirmModal, setConfirmModal] = useState<{ open: boolean, noteId?: string, isPermanent?: boolean, isEmptyTrash?: boolean }>({ open: false });
     const [pinModal, setPinModal] = useState<{ open: boolean, mode: 'unlock'|'set'|'set-master', noteId?: string }>({ open: false, mode: 'unlock' });
     const [masterPin, setMasterPin] = useState<string | null>(localStorage.getItem('vitreon_master_pin'));
     const [isBiometricsEnabled, setIsBiometricsEnabled] = useState<boolean>(localStorage.getItem('vitreon_biometrics') === 'true');
@@ -48,10 +50,12 @@ export default function App() {
     const [userEmail, setUserEmail] = useState(localStorage.getItem('vitreon_user_email') || 'vitreon.notes@example.com');
     const [userBio, setUserBio] = useState(localStorage.getItem('vitreon_user_bio') || 'Digital minimalist and note-taking enthusiast.');
     const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(!localStorage.getItem('vitreon_onboarded'));
+    const [showGDPR, setShowGDPR] = useState<boolean>(!localStorage.getItem('vitreon_accepted_gdpr'));
 
     // Initial Load
     useEffect(() => {
         const load = async () => {
+            await cleanupTrash();
             const stored = await getNotes();
             setNotes(stored);
             setIsLoading(false);
@@ -71,6 +75,20 @@ export default function App() {
             document.documentElement.classList.add('dark');
         }
         localStorage.setItem('vitreon_theme', theme);
+        
+        // Update Mobile Status Bar Color
+        const themeColors = {
+            light: '#f8fafc',
+            dark: '#030712',
+            black: '#000000'
+        };
+        let metaThemeColor = document.querySelector('meta[name="theme-color"]');
+        if (!metaThemeColor) {
+            metaThemeColor = document.createElement('meta');
+            metaThemeColor.setAttribute('name', 'theme-color');
+            document.head.appendChild(metaThemeColor);
+        }
+        metaThemeColor.setAttribute('content', themeColors[theme]);
     }, [theme]);
 
     // Handle Hardware Back Button / Back Gesture
@@ -123,12 +141,37 @@ export default function App() {
     };
 
     const handleDeleteNote = (id: string) => {
-        setConfirmModal({ open: true, noteId: id });
+        const note = notes.find(n => n.id === id);
+        if (note?.deletedAt) {
+            setConfirmModal({ open: true, noteId: id, isPermanent: true });
+        } else {
+            setConfirmModal({ open: true, noteId: id, isPermanent: false });
+        }
     };
 
     const confirmDelete = async () => {
-        if (!confirmModal.noteId) return;
-        await deleteNote(confirmModal.noteId);
+        if (confirmModal.isEmptyTrash) {
+            const trashedNotes = notes.filter(n => !!n.deletedAt);
+            for (const n of trashedNotes) {
+                await deleteNote(n.id);
+            }
+            showToast(t('noteDeleted'));
+        } else if (confirmModal.noteId) {
+            if (confirmModal.isPermanent) {
+                await deleteNote(confirmModal.noteId);
+                showToast(t('noteDeleted'));
+            } else {
+                const note = notes.find(n => n.id === confirmModal.noteId);
+                if (note) {
+                    const updated = { ...note, deletedAt: Date.now(), isPinned: false };
+                    await saveNote(updated);
+                    showToast(t('movedToTrash'));
+                }
+            }
+        } else {
+            return;
+        }
+        
         setNotes(await getNotes());
         if (currentNote?.id === confirmModal.noteId) { 
             setCurrentNote(null); 
@@ -136,7 +179,12 @@ export default function App() {
             setView('home'); 
         }
         setConfirmModal({ open: false });
-        showToast(t('noteDeleted'));
+    };
+
+    const handleRestoreNote = async (note: Note) => {
+        const updated = { ...note, deletedAt: undefined };
+        await handleSaveNote(updated);
+        showToast(t('noteRestored'));
     };
 
     const handleArchiveNote = async (note: Note) => {
@@ -212,6 +260,7 @@ export default function App() {
     };
 
     const handleNoteClick = async (note: Note) => {
+        if (note.deletedAt) return;
         if (note.isLocked) {
             if (isBiometricsEnabled) {
                 const success = await BiometricsService.authenticate();
@@ -354,10 +403,10 @@ export default function App() {
                              )}
                         </div>
                         <h1 className="text-xl font-bold tracking-tight text-slate-800 dark:text-white animate-in slide-in-from-top-4">
-                            {view === 'home' ? (showFavorites ? t('favorites') : showArchived ? t('archived') : t('allNotes')) : t(view as any)}
+                            {view === 'home' ? (showFavorites ? t('favorites') : showArchived ? t('archived') : showTrash ? t('trash') : t('allNotes')) : t(view as any)}
                         </h1>
                         <button 
-                            onClick={() => { setShowArchived(!showArchived); setShowFavorites(false); setView('home'); }}
+                            onClick={() => { setShowArchived(!showArchived); setShowFavorites(false); setShowTrash(false); setView('home'); }}
                             className={`w-11 h-11 rounded-2xl glass-card flex items-center justify-center cursor-pointer transition-all ${showArchived ? 'bg-indigo-500 text-white border-indigo-500' : 'text-slate-600 dark:text-slate-300'}`}
                         >
                             <span className="material-symbols-rounded">{showArchived ? 'unarchive' : 'archive'}</span>
@@ -369,10 +418,15 @@ export default function App() {
                     {view === 'home' && (
                         <HomeView 
                             notes={notes} categories={categories} onNoteClick={handleNoteClick} 
-                            showFavorites={showFavorites} onToggleFavorites={() => { setShowFavorites(!showFavorites); setShowArchived(false); setSelectedCategory(null); }} 
-                            showArchived={showArchived} onToggleArchive={() => { setShowArchived(!showArchived); setShowFavorites(false); setSelectedCategory(null); }}
+                            showFavorites={showFavorites} onToggleFavorites={() => { setShowFavorites(!showFavorites); setShowArchived(false); setShowTrash(false); setSelectedCategory(null); }} 
+                            showArchived={showArchived} onToggleArchive={() => { setShowArchived(!showArchived); setShowFavorites(false); setShowTrash(false); setSelectedCategory(null); }}
+                            showTrash={showTrash} onToggleTrash={() => { setShowTrash(!showTrash); setShowFavorites(false); setShowArchived(false); setSelectedCategory(null); }}
+                            onRestoreNote={handleRestoreNote}
+                            onEmptyTrash={() => setConfirmModal({ open: true, isEmptyTrash: true, isPermanent: true })}
                             selectedCategory={selectedCategory} onClearCategory={() => setSelectedCategory(null)}
                             onPinNote={handlePinNote}
+                            onDeleteNote={handleDeleteNote}
+                            onUpdateNote={handleSaveNote}
                             onReorderNotes={async (reordered) => {
                                 // 1. Update local state immediately for snappy UI
                                 const total = reordered.length;
@@ -403,9 +457,10 @@ export default function App() {
                     )}
                     {view === 'profile' && (
                         <ProfileView 
-                            notesCount={notes.length} 
+                            notesCount={notes.filter(n => !n.deletedAt).length} 
                             categoriesCount={categories.length} 
                             onBack={() => setView('home')} 
+                            onViewTrash={() => { setShowTrash(true); setView('home'); setShowFavorites(false); setShowArchived(false); }}
                             masterPin={masterPin}
                             isBiometricsEnabled={isBiometricsEnabled}
                             onSetMasterPin={() => setPinModal({ open: true, mode: 'set-master' })}
@@ -433,10 +488,10 @@ export default function App() {
 
                 {(view !== 'editor' && view !== 'profile') && (
                     <div className="h-20 absolute bottom-0 left-0 right-0 glass-blur rounded-t-[40px] flex items-center justify-around px-8 z-20 border-t border-white/5 animate-in slide-in-from-bottom-8">
-                        <button onClick={() => {setView('home'); setShowFavorites(false); setShowArchived(false);}} className={`p-3 rounded-2xl transition-all ${view === 'home' && !showFavorites && !showArchived ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
-                            <span className="material-symbols-rounded text-2xl" style={{ fontVariationSettings: view === 'home' && !showFavorites && !showArchived ? "'FILL' 1" : "'FILL' 0" }}>home</span>
+                        <button onClick={() => {setView('home'); setShowFavorites(false); setShowArchived(false); setShowTrash(false);}} className={`p-3 rounded-2xl transition-all ${view === 'home' && !showFavorites && !showArchived && !showTrash ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
+                            <span className="material-symbols-rounded text-2xl" style={{ fontVariationSettings: view === 'home' && !showFavorites && !showArchived && !showTrash ? "'FILL' 1" : "'FILL' 0" }}>home</span>
                         </button>
-                        <button onClick={() => {setView('categories'); setShowFavorites(false); setShowArchived(false);}} className={`p-3 rounded-2xl transition-all ${view === 'categories' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
+                        <button onClick={() => {setView('categories'); setShowFavorites(false); setShowArchived(false); setShowTrash(false);}} className={`p-3 rounded-2xl transition-all ${view === 'categories' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
                             <span className="material-symbols-rounded text-2xl" style={{ fontVariationSettings: view === 'categories' ? "'FILL' 1" : "'FILL' 0" }}>folder</span>
                         </button>
                         
@@ -453,10 +508,10 @@ export default function App() {
                              </button>
                         </div>
 
-                        <button onClick={() => {setShowFavorites(true); setShowArchived(false); setView('home');}} className={`p-3 rounded-2xl transition-all ${showFavorites ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
+                        <button onClick={() => {setShowFavorites(true); setShowArchived(false); setShowTrash(false); setView('home');}} className={`p-3 rounded-2xl transition-all ${showFavorites ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
                             <span className="material-symbols-rounded text-2xl" style={{ fontVariationSettings: showFavorites ? "'FILL' 1" : "'FILL' 0" }}>star</span>
                         </button>
-                        <button onClick={() => {setView('settings'); setShowFavorites(false); setShowArchived(false);}} className={`p-3 rounded-2xl transition-all ${view === 'settings' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
+                        <button onClick={() => {setView('settings'); setShowFavorites(false); setShowArchived(false); setShowTrash(false);}} className={`p-3 rounded-2xl transition-all ${view === 'settings' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
                             <span className="material-symbols-rounded text-2xl" style={{ fontVariationSettings: view === 'settings' ? "'FILL' 1" : "'FILL' 0" }}>settings</span>
                         </button>
                     </div>
@@ -471,14 +526,21 @@ export default function App() {
             <PinModal isOpen={pinModal.open} onClose={() => setPinModal({...pinModal, open: false})} isSettingPin={pinModal.mode === 'set' || pinModal.mode === 'set-master'} onUnlock={handlePinResult} />
             <ConfirmModal 
                 isOpen={confirmModal.open} 
-                title={t('deleteNote')} 
-                message={t('deleteMessage')} 
+                title={confirmModal.isPermanent ? t('permanentDelete') : t('moveToTrash')} 
+                message={confirmModal.isPermanent ? t('deleteMessage') : t('trashMessage')} 
                 onConfirm={confirmDelete} 
                 onCancel={() => setConfirmModal({ open: false })}
-                confirmText={t('delete')}
+                confirmText={confirmModal.isPermanent ? t('delete') : t('confirm')}
                 cancelText={t('cancel')}
             />
             <input type="file" id="md-import" className="hidden" accept=".md,.json" onChange={handleImport} />
+            <GDPRModal 
+                isOpen={showGDPR} 
+                onAccept={() => {
+                    localStorage.setItem('vitreon_accepted_gdpr', 'true');
+                    setShowGDPR(false);
+                }} 
+            />
             {toastMsg && <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-full glass-panel shadow-xl text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2 animate-in fade-in slide-in-from-top-2"><span className="material-symbols-rounded text-green-500 text-lg">check_circle</span>{toastMsg}</div>}
         </div>
     );

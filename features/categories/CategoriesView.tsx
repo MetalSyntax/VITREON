@@ -55,7 +55,9 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ categories, note
     }, []);
 
     const counts = notes.reduce((acc, note) => {
-        acc[note.category] = (acc[note.category] || 0) + 1;
+        if (!note.deletedAt) {
+            acc[note.category] = (acc[note.category] || 0) + 1;
+        }
         return acc;
     }, {} as Record<string, number>);
 

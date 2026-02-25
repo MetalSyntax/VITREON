@@ -15,12 +15,13 @@ interface ProfileViewProps {
     userEmail: string;
     userBio: string;
     onUpdateProfile: (name: string, email: string, bio: string) => void;
+    onViewTrash: () => void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({ 
     notesCount, categoriesCount, onBack, masterPin, isBiometricsEnabled, onSetMasterPin, onToggleBiometrics,
     profileImage, onUpdateProfileImage, userName: initialUserName, userEmail: initialUserEmail, userBio: initialUserBio,
-    onUpdateProfile
+    onUpdateProfile, onViewTrash
 }) => {
     const { t } = useI18n();
     const [activeSection, setActiveSection] = useState<'main' | 'edit' | 'security'>('main');
@@ -126,7 +127,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
     if (activeSection === 'security') {
         return (
-            <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-32 p-6 animate-in fade-in slide-in-from-right-4 duration-300">
+            <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-32 p-6">
                 <div className="flex items-center justify-between mb-8">
                     <button onClick={() => setActiveSection('main')} className="w-11 h-11 rounded-2xl glass-panel flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-indigo-500 transition-colors">
                         <span className="material-symbols-rounded">chevron_left</span>
@@ -136,7 +137,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                 </div>
 
                 <div className="space-y-4">
-                    <div className="glass-panel rounded-[32px] p-6 hover:border-indigo-500/30 transition-all group  stagger-1">
+                    <div className="glass-panel rounded-[32px] p-6 hover:border-indigo-500/30 transition-all group">
                         <h4 className="font-bold text-slate-800 dark:text-white mb-2 flex items-center gap-2">
                             <span className="material-symbols-rounded text-indigo-500">password</span>
                             {t('masterPin')}
@@ -147,7 +148,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                         </button>
                     </div>
                     
-                    <div className="glass-panel rounded-[32px] p-6 hover:border-indigo-500/30 transition-all group  stagger-2">
+                    <div className="glass-panel rounded-[32px] p-6 hover:border-indigo-500/30 transition-all group">
                         <div className="flex items-center justify-between">
                             <h4 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
                                 <span className="material-symbols-rounded text-green-500">fingerprint</span>
@@ -233,6 +234,18 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                 <div className="text-left">
                                     <div className="font-bold text-slate-700 dark:text-white text-sm">{t('security')}</div>
                                     <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{t('pinBiometrics')}</div>
+                                </div>
+                            </div>
+                            <span className="material-symbols-rounded text-slate-300 group-hover:translate-x-1 transition-transform">chevron_right</span>
+                        </button>
+                        <button onClick={onViewTrash} className="w-full flex items-center justify-between p-6 hover:bg-slate-500/5 transition-all group">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 rounded-2xl bg-slate-500/10 text-slate-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                    <span className="material-symbols-rounded text-xl">delete</span>
+                                </div>
+                                <div className="text-left">
+                                    <div className="font-bold text-slate-700 dark:text-white text-sm">{t('trash')}</div>
+                                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{t('trashMessage')}</div>
                                 </div>
                             </div>
                             <span className="material-symbols-rounded text-slate-300 group-hover:translate-x-1 transition-transform">chevron_right</span>

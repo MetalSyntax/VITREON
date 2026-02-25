@@ -8,10 +8,13 @@ interface NoteCardProps {
     category?: Category;
     onClick: () => void;
     onPin?: () => void;
+    onRestore?: () => void;
+    onDelete?: () => void;
+    onUpdate?: (note: Note) => void;
     layout?: 'grid' | 'carousel' | 'list' | 'card';
 }
 
-export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onPin, layout = 'grid' }) => {
+export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onPin, onRestore, onDelete, onUpdate, layout = 'grid' }) => {
     const { t } = useI18n();
     const isCarousel = layout === 'carousel';
     const isList = layout === 'list';
@@ -24,10 +27,10 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
             ${isCarousel ? 'snap-start w-[280px] h-64' : ''}
             ${isList ? 'flex flex-row items-center h-24 mb-2 w-full' : ''}
             ${isCard ? 'flex flex-col h-auto mb-4 w-full' : ''}
-            ${layout === 'grid' ? 'flex flex-col h-full' : ''}`}
+            ${layout === 'grid' ? 'flex flex-col h-auto break-inside-avoid mb-4' : ''}`}
         >
             {/* Quick Pin Toggle */}
-            {onPin && (
+            {onPin && !note.deletedAt && (
                 <button 
                     onClick={(e) => { e.stopPropagation(); onPin(); }}
                     className={`absolute top-4 right-4 z-10 w-9 h-9 rounded-full backdrop-blur-xl border border-white/20 flex items-center justify-center transition-all 
@@ -37,6 +40,25 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
                 >
                     <span className="material-symbols-rounded text-[1.2rem]" style={{ fontVariationSettings: note.isPinned ? "'FILL' 1" : "'FILL' 0" }}>push_pin</span>
                 </button>
+            )}
+
+            {note.deletedAt && (
+                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity p-4">
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onRestore?.(); }}
+                        className="w-full py-2.5 rounded-2xl bg-indigo-500 text-white font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all text-sm"
+                    >
+                        <span className="material-symbols-rounded text-lg">restore</span>
+                        {t('restore')}
+                    </button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
+                        className="w-full py-2.5 rounded-2xl bg-red-500 text-white font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all text-sm"
+                    >
+                        <span className="material-symbols-rounded text-lg">delete_forever</span>
+                        {t('delete')}
+                    </button>
+                </div>
             )}
 
             {note.isLocked ? (
@@ -87,8 +109,8 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
 
                     <div className={`p-5 flex-1 flex flex-col justify-between overflow-hidden`}>
                         <div>
-                            <div className="flex justify-between items-start mb-1 pr-8">
-                                <h3 className="font-bold text-lg text-slate-800 dark:text-white line-clamp-1 group-hover:text-indigo-500 transition-colors tracking-tight">{note.title || t('untitled')}</h3>
+                            <div className="flex justify-between items-start mb-1 flex-col-reverse">
+                                <h3 className="font-bold text-lg text-slate-800 dark:text-white group-hover:text-indigo-500 transition-colors tracking-tight">{note.title || t('untitled')}</h3>
                                 {!isCarousel && (
                                     <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest shrink-0 ml-2">
                                         {new Date(note.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric'})}
@@ -97,7 +119,35 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
                             </div>
                             <div className={`text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-small ${isList ? 'line-clamp-1' : 'line-clamp-6'}`}>
                                 {note.isChecklist ? (
-                                    <p className="opacity-60 flex items-center gap-2"><span className="material-symbols-rounded text-sm">checklist</span> {t('tasksCount')}</p>
+                                    <div className="space-y-1.5 mt-1">
+                                        {(note.content || "").split('\n').slice(0, isList ? 1 : 5).map((line, idx) => {
+                                            const isChecked = line.startsWith('[x] ');
+                                            const text = line.replace(/^\[[ x]\] /, '');
+                                            if (!text.trim() && idx > 0) return null;
+                                            return (
+                                                <div key={idx} className="flex items-center gap-2 group/item">
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            const lines = note.content.split('\n');
+                                                            if (isChecked) lines[idx] = '[ ] ' + text;
+                                                            else lines[idx] = '[x] ' + text;
+                                                            onUpdate?.({ ...note, content: lines.join('\n'), updatedAt: Date.now() });
+                                                        }}
+                                                        className={`w-4 h-4 rounded-md border transition-all flex items-center justify-center shrink-0 ${isChecked ? 'bg-indigo-500 border-indigo-500' : 'border-slate-300 dark:border-slate-600'}`}
+                                                    >
+                                                        {isChecked && <span className="material-symbols-rounded text-white text-[10px] font-bold">check</span>}
+                                                    </button>
+                                                    <span className={`text-xs truncate ${isChecked ? 'line-through opacity-50' : ''}`}>{text || t('taskItem')}</span>
+                                                </div>
+                                            );
+                                        })}
+                                        {!isList && note.content.split('\n').length > 5 && (
+                                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mt-1">
+                                                + {note.content.split('\n').length - 5} {t('more')}
+                                            </p>
+                                        )}
+                                    </div>
                                 ) : (
                                     <RichText content={note.content || t('noContent')} className={isList ? "line-clamp-1" : "line-clamp-6"} />
                                 )}

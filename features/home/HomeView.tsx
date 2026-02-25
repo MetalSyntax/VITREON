@@ -15,12 +15,21 @@ interface HomeViewProps {
     onClearCategory: () => void;
     onPinNote: (note: Note) => void;
     onReorderNotes: (reorderedNotes: Note[]) => void;
+    showTrash: boolean;
+    onToggleTrash: () => void;
+    onRestoreNote: (note: Note) => void;
+    onDeleteNote: (id: string) => void;
+    onEmptyTrash: () => void;
+    onUpdateNote: (note: Note) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({ 
     notes, categories, onNoteClick, 
     showFavorites, onToggleFavorites,
     showArchived, onToggleArchive,
+    showTrash, onToggleTrash,
+    onRestoreNote, onDeleteNote, onEmptyTrash,
+    onUpdateNote,
     selectedCategory, onClearCategory,
     onPinNote, onReorderNotes
 }) => {
@@ -42,11 +51,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
     });
 
     if (showFavorites) {
-        filtered = filtered.filter(n => n.isPinned);
+        filtered = filtered.filter(n => n.isPinned && !n.deletedAt);
     } else if (showArchived) {
-        filtered = filtered.filter(n => n.isArchived);
+        filtered = filtered.filter(n => n.isArchived && !n.deletedAt);
+    } else if (showTrash) {
+        filtered = filtered.filter(n => !!n.deletedAt);
     } else {
-        filtered = filtered.filter(n => !n.isArchived);
+        filtered = filtered.filter(n => !n.isArchived && !n.deletedAt);
         if (selectedCategory) {
             filtered = filtered.filter(n => n.category === selectedCategory);
         }
@@ -59,8 +70,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
         );
     }
 
-    const pinned = !showFavorites && !showArchived ? filtered.filter(n => n.isPinned) : [];
-    const mainList = !showFavorites && !showArchived ? filtered.filter(n => !n.isPinned) : filtered;
+    const pinned = (!showFavorites && !showArchived && !showTrash) ? filtered.filter(n => n.isPinned) : [];
+    const mainList = (!showFavorites && !showArchived && !showTrash) ? filtered.filter(n => !n.isPinned) : filtered;
 
     const toggleSort = () => {
         const next = sortBy === 'date' ? 'alpha' : 'date';
@@ -206,18 +217,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <h2 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">{t('pinnedNotes')}</h2>
                     </div>
                     <div className="flex overflow-x-auto gap-5 px-6 pb-4 no-scrollbar snap-x">
-                        {pinned.map(note => <NoteCard key={note.id} note={note} category={categories.find(c => c.id === note.category)} onClick={() => onNoteClick(note)} onPin={() => onPinNote(note)} layout="carousel" />)}
+                        {pinned.map(note => <NoteCard key={note.id} note={note} category={categories.find(c => c.id === note.category)} onClick={() => onNoteClick(note)} onPin={() => onPinNote(note)} onUpdate={onUpdateNote} layout="carousel" />)}
                     </div>
                 </div>
             )}
 
-            <div className="px-6 mb-4  stagger-3">
-                <h2 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">{showFavorites ? t('favorites') : showArchived ? t('archived') : t('allNotes')}</h2>
+            <div className="px-6 mb-4 stagger-3 flex items-center justify-between">
+                <div>
+                    <h2 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">
+                        {showFavorites ? t('favorites') : showArchived ? t('archived') : showTrash ? t('trash') : t('allNotes')}
+                    </h2>
+                    {showTrash && filtered.length > 0 && (
+                        <p className="text-sm text-slate-500 mt-1">{t('trashMessage')}</p>
+                    )}
+                </div>
+                {showTrash && filtered.length > 0 && (
+                    <button 
+                        onClick={onEmptyTrash}
+                        className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 text-xs font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
+                    >
+                        <span className="material-symbols-rounded text-sm">delete_sweep</span>
+                        {t('emptyTrash')}
+                    </button>
+                )}
             </div>
             
             <div className={`
-                px-6 pb-20 stagger-4
-                ${layoutMode === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4' : 'flex flex-col gap-3'}
+                px-6 pb-20 stagger-4 w-full
+                ${layoutMode === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 items-start' : 'flex flex-col gap-3'}
                 ${layoutMode === 'card' ? 'max-w-2xl mx-auto w-full' : ''}
             `}>
                 {mainList.map((note, idx) => (
@@ -232,9 +259,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         onTouchStart={(e) => handleDragStart(e, note.id)}
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
-                        className={`h-full transition-all duration-300 ${draggedId === note.id ? 'opacity-40 scale-95 rotate-2' : 'opacity-100'} ${dropId === note.id ? 'scale-105 rounded-[32px] ring-2 ring-indigo-500/50 p-1' : ''}`}
+                        className={`transition-all duration-300 w-full ${draggedId === note.id ? 'opacity-40 scale-95 rotate-2' : 'opacity-100'} ${dropId === note.id ? 'scale-105 rounded-[32px] ring-2 ring-indigo-500/50 p-1' : ''}`}
                     >
-                        <NoteCard note={note} category={categories.find(c => c.id === note.category)} onClick={() => onNoteClick(note)} onPin={() => onPinNote(note)} layout={layoutMode} />
+                        <NoteCard 
+                            note={note} category={categories.find(c => c.id === note.category)} 
+                            onClick={() => onNoteClick(note)} onPin={() => onPinNote(note)} 
+                            layout={layoutMode} 
+                            onRestore={showTrash ? () => onRestoreNote(note) : undefined}
+                            onDelete={showTrash ? () => onDeleteNote(note.id) : undefined}
+                            onUpdate={onUpdateNote}
+                        />
                     </div>
                 ))}
                 {mainList.length === 0 && !pinned.length && (
