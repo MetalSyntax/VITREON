@@ -15,7 +15,7 @@ interface NoteCardProps {
 }
 
 export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onPin, onRestore, onDelete, onUpdate, layout = 'grid' }) => {
-    const { t } = useI18n();
+    const { t, getCategoryName } = useI18n();
     const isCarousel = layout === 'carousel';
     const isList = layout === 'list';
     const isCard = layout === 'card';
@@ -171,7 +171,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
                                          <div className={`w-7 h-7 rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center text-${category?.color || 'slate'}-500 dark:text-${category?.color || 'slate'}-400`}>
                                              <span className="material-symbols-rounded text-base">{category?.icon || 'description'}</span>
                                          </div>
-                                         <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{t(category?.id as any) || category?.name || t('general')}</span>
+                                         <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{getCategoryName(category?.id, category?.name) || t('general')}</span>
                                     </div>
                                     <div className="flex gap-2">
                                         {(note.attachments?.some(a => a.type === 'image') || (note.images?.length || 0) > 0) && <span className="material-symbols-rounded text-[15px] text-slate-400 dark:text-slate-500">image</span>}

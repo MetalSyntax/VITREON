@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { en } from './locales/en';
 import { es } from './locales/es';
 import { pt } from './locales/pt';
@@ -19,9 +19,15 @@ export const useI18n = () => {
         localStorage.setItem('vitreon_lang', lang);
     }, [lang]);
 
-    const t = (key: TranslationKeys): string => {
+    const t = useCallback((key: TranslationKeys): string => {
         return translations[lang][key] || translations.en[key] || key;
-    };
+    }, [lang]);
 
-    return { t, lang, setLang };
+    const getCategoryName = useCallback((categoryId?: string, currentName?: string): string => {
+        if (!categoryId) return currentName || '';
+        const isDefault = Object.values(translations).some(loc => loc[categoryId as TranslationKeys] === currentName) || categoryId === currentName;
+        return isDefault ? (translations[lang][categoryId as TranslationKeys] || translations.en[categoryId as TranslationKeys] || currentName || categoryId) : (currentName || categoryId);
+    }, [lang]);
+
+    return { t, lang, setLang, getCategoryName };
 };

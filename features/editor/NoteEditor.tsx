@@ -19,7 +19,7 @@ interface NoteEditorProps {
 export const NoteEditor: React.FC<NoteEditorProps> = ({ 
     initialNote, categories, onSave, onDelete, onArchive, onPin, onLock, onBack 
 }) => {
-    const { t } = useI18n();
+    const { t, getCategoryName } = useI18n();
     const [note, setNote] = useState<Note>({
         ...initialNote,
         attachments: initialNote.attachments || [],
@@ -305,7 +305,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                         className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all text-[10px] font-bold uppercase tracking-widest border ${isViewMode ? 'bg-slate-500/10 text-slate-500 border-slate-500/20' : (showCategoryMenu ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20 hover:bg-indigo-500/20')}`}
                     >
                         <span className="material-symbols-rounded text-sm">{currentCat?.icon || 'folder'}</span>
-                        {t(currentCat?.id as any) || currentCat?.name || t('general')}
+                        {getCategoryName(currentCat?.id, currentCat?.name) || t('general')}
                         {!isViewMode && <span className="material-symbols-rounded text-sm transition-transform duration-300" style={{ transform: showCategoryMenu ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</span>}
                     </button>
                     
@@ -321,7 +321,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                                         <div className={`w-8 h-8 rounded-xl flex items-center justify-center bg-${c.color}-500/10 text-${c.color}-500`}>
                                             <span className="material-symbols-rounded text-lg">{c.icon}</span>
                                         </div>
-                                        <span className={`text-[11px] font-bold uppercase tracking-widest ${note.category === c.id ? 'text-indigo-500' : 'text-slate-600 dark:text-slate-300'}`}>{t(c.id as any) || c.name}</span>
+                                        <span className={`text-[11px] font-bold uppercase tracking-widest ${note.category === c.id ? 'text-indigo-500' : 'text-slate-600 dark:text-slate-300'}`}>{getCategoryName(c.id, c.name)}</span>
                                     </div>
                                     {note.category === c.id && <span className="material-symbols-rounded text-indigo-500 text-sm">check_circle</span>}
                                 </button>

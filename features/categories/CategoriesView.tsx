@@ -20,7 +20,7 @@ const TIP_KEYS = [
 ] as const;
 
 const CategoryCard: React.FC<{ category: Category; count: number; onClick: () => void; onDelete: (e: React.MouseEvent) => void; onEdit: (e: React.MouseEvent) => void }> = ({ category, count, onClick, onDelete, onEdit }) => {
-    const { t } = useI18n();
+    const { t, getCategoryName } = useI18n();
     const styles = `from-${category.color}-500/20 to-${category.color}-600/5 text-${category.color}-500 dark:text-${category.color}-400 border-${category.color}-500/20`;
 
     return (
@@ -43,7 +43,7 @@ const CategoryCard: React.FC<{ category: Category; count: number; onClick: () =>
                 <span className="material-symbols-rounded text-2xl">{category.icon}</span>
             </div>
             <div>
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1">{t(category.id as any) || category.name}</h3>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1">{getCategoryName(category.id, category.name)}</h3>
                 <p className="text-sm font-semibold opacity-60">{count} {t('notesCount')}</p>
             </div>
         </div>

@@ -33,7 +33,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     selectedCategory, onClearCategory,
     onPinNote, onReorderNotes
 }) => {
-    const { t, lang } = useI18n();
+    const { t, lang, getCategoryName } = useI18n();
     const [searchQuery, setSearchQuery] = useState('');
     const [isListening, setIsListening] = useState(false);
     const [sortBy, setSortBy] = useState<'date' | 'alpha'>(localStorage.getItem('vitreon_sort') as any || 'date');
@@ -208,7 +208,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <div className={`glass-card rounded-2xl p-4 flex items-center justify-between border-l-4 border-${currentCat?.color || 'slate'}-500`}>
                         <div className="flex items-center gap-3">
                             <span className="material-symbols-rounded text-indigo-500">{currentCat?.icon || 'folder'}</span>
-                            <span className="font-bold text-slate-700 dark:text-white">{t('collection')}: {currentCat?.name || t('unknown')}</span>
+                            <span className="font-bold text-slate-700 dark:text-white">{t('collection')}: {getCategoryName(currentCat?.id, currentCat?.name) || t('unknown')}</span>
                         </div>
                         <button onClick={onClearCategory} className="w-8 h-8 rounded-full hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors">
                             <span className="material-symbols-rounded">close</span>
