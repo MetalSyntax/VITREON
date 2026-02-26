@@ -4,13 +4,12 @@
  */
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_DRIVE_CLIENT_ID;
-const API_KEY = import.meta.env.VITE_GOOGLE_DRIVE_API_KEY;
-const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
+// API_KEY is intentionally excluded since we just use the access_token with FETCH directly.
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
 let tokenClient: any;
-let gapiInited = false;
 let gisInited = false;
+let currentToken = '';
 
 /**
  * Initialize the Google API client
@@ -18,16 +17,8 @@ let gisInited = false;
 export const initGoogleDrive = async () => {
     return new Promise<void>((resolve, reject) => {
         try {
-            // Initialize GAPI
-            (window as any).gapi.load('client', async () => {
-                await (window as any).gapi.client.init({
-                    apiKey: API_KEY,
-                    discoveryDocs: [DISCOVERY_DOC],
-                });
-                gapiInited = true;
-                if (gisInited) resolve();
-            });
-
+            if (gisInited) return resolve();
+            
             // Initialize GIS
             tokenClient = (window as any).google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
@@ -35,7 +26,7 @@ export const initGoogleDrive = async () => {
                 callback: '', // defined at request time
             });
             gisInited = true;
-            if (gapiInited) resolve();
+            resolve();
         } catch (err) {
             reject(err);
         }
@@ -46,19 +37,64 @@ export const initGoogleDrive = async () => {
  * Request permission from user
  */
 const getAccessToken = async (): Promise<string> => {
+    const cachedToken = localStorage.getItem('vitreon_gdrive_token');
+    const tokenExpiry = localStorage.getItem('vitreon_gdrive_expiry');
+    
+    // Si tenemos un token cacheado y aún no expira, lo reusamos de inmediato
+    if (cachedToken && tokenExpiry && Date.now() < parseInt(tokenExpiry, 10)) {
+        return cachedToken;
+    }
+
     return new Promise((resolve, reject) => {
         try {
             tokenClient.callback = (resp: any) => {
                 if (resp.error !== undefined) {
                     reject(resp);
+                    return;
                 }
-                resolve(resp.access_token);
+                
+                const token = resp.access_token;
+                // Google envía expires_in (usualmente 3600 segundos = 1 hora)
+                const expiresInMs = resp.expires_in ? parseInt(resp.expires_in, 10) * 1000 : 3600000;
+                
+                localStorage.setItem('vitreon_gdrive_token', token);
+                // Guardamos la expiración 5 minutos (300000ms) antes del límite real por seguridad
+                localStorage.setItem('vitreon_gdrive_expiry', (Date.now() + expiresInMs - 300000).toString());
+                
+                resolve(token);
             };
-            tokenClient.requestAccessToken({ prompt: 'consent' });
+            tokenClient.requestAccessToken({ prompt: '' });
         } catch (err) {
             reject(err);
         }
     });
+};
+
+/**
+ * Helper to fetch files
+ */
+const queryFiles = async (token: string, searchExactName?: string) => {
+    const q = searchExactName 
+        ? encodeURIComponent(`name = '${searchExactName}' and trashed = false`)
+        : encodeURIComponent("name contains 'vitreon_backup' and trashed = false");
+    
+    const response = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name,createdTime)&orderBy=createdTime desc`, {
+        headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (response.status === 401) {
+        localStorage.removeItem('vitreon_gdrive_token');
+        localStorage.removeItem('vitreon_gdrive_expiry');
+        throw new Error("Token expired");
+    }
+    if (!response.ok) throw new Error("Failed to query files");
+    return await response.json();
+};
+
+export const listGoogleDriveBackups = async () => {
+    const token = await getAccessToken();
+    const data = await queryFiles(token);
+    return data.files || [];
 };
 
 /**
@@ -68,27 +104,21 @@ export const syncToGoogleDrive = async (jsonContent: string) => {
     console.log("Starting Google Drive Sync...");
     
     try {
-        await getAccessToken();
-        
-        // 1. Search for existing backup file
-        const response = await (window as any).gapi.client.drive.files.list({
-            q: "name = 'vitreon_backup.json' and trashed = false",
-            fields: 'files(id, name)',
-            spaces: 'drive',
-        });
-
-        const files = response.result.files;
+        const token = await getAccessToken();
+        const todayDateName = `vitreon_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        const data = await queryFiles(token, todayDateName);
+        const files = data.files;
         const fileContent = new Blob([jsonContent], { type: 'application/json' });
         
         if (files && files.length > 0) {
             // Update existing file
             const fileId = files[0].id;
-            await uploadFile(fileId, fileContent);
-            console.log("Updated existing backup on Google Drive.");
+            await uploadFile(fileId, fileContent, token);
+            console.log(`Updated existing backup (${todayDateName}) on Google Drive.`);
         } else {
             // Create new file
-            await createFile('vitreon_backup.json', fileContent);
-            console.log("Created new backup on Google Drive.");
+            await createFile(todayDateName, fileContent, token);
+            console.log(`Created new backup (${todayDateName}) on Google Drive.`);
         }
     } catch (error) {
         console.error("GDRIVE_SYNC_ERROR", error);
@@ -99,7 +129,7 @@ export const syncToGoogleDrive = async (jsonContent: string) => {
 /**
  * Helper to create a new file
  */
-const createFile = async (name: string, content: Blob) => {
+const createFile = async (name: string, content: Blob, token: string) => {
     const metadata = {
         name: name,
         mimeType: 'application/json',
@@ -111,7 +141,7 @@ const createFile = async (name: string, content: Blob) => {
 
     return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
         method: 'POST',
-        headers: new Headers({ 'Authorization': 'Bearer ' + (window as any).gapi.auth.getToken().access_token }),
+        headers: new Headers({ 'Authorization': `Bearer ${token}` }),
         body: form,
     });
 };
@@ -119,10 +149,10 @@ const createFile = async (name: string, content: Blob) => {
 /**
  * Helper to update an existing file
  */
-const uploadFile = async (fileId: string, content: Blob) => {
+const uploadFile = async (fileId: string, content: Blob, token: string) => {
     return fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
         method: 'PATCH',
-        headers: new Headers({ 'Authorization': 'Bearer ' + (window as any).gapi.auth.getToken().access_token }),
+        headers: new Headers({ 'Authorization': `Bearer ${token}` }),
         body: content,
     });
 };
@@ -130,25 +160,13 @@ const uploadFile = async (fileId: string, content: Blob) => {
 /**
  * Download notes from Google Drive
  */
-export const loadFromGoogleDrive = async (): Promise<string | null> => {
+export const downloadFromGoogleDrive = async (fileId: string): Promise<string | null> => {
     try {
-        await getAccessToken();
-        
-        const response = await (window as any).gapi.client.drive.files.list({
-            q: "name = 'vitreon_backup.json' and trashed = false",
-            fields: 'files(id, name)',
-            spaces: 'drive',
+        const token = await getAccessToken();
+        const fileResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+            headers: new Headers({ 'Authorization': `Bearer ${token}` }),
         });
-
-        const files = response.result.files;
-        if (files && files.length > 0) {
-            const fileId = files[0].id;
-            const fileResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-                headers: new Headers({ 'Authorization': 'Bearer ' + (window as any).gapi.auth.getToken().access_token }),
-            });
-            return await fileResponse.text();
-        }
-        return null;
+        return await fileResponse.text();
     } catch (error) {
         console.error("GDRIVE_LOAD_ERROR", error);
         return null;

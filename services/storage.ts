@@ -6,8 +6,8 @@ const DB_VERSION = 1;
 
 // --- Crypto Helpers ---
 
-const ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY || 'default-secret-key-change-me';
-const ENCRYPTION_SALT = import.meta.env.VITE_ENCRYPTION_SALT || 'default-salt-change-me';
+const ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY;
+const ENCRYPTION_SALT = import.meta.env.VITE_ENCRYPTION_SALT;
 
 /**
  * Derives a cryptographic key from the environment variables using PBKDF2.
@@ -224,14 +224,57 @@ export const exportDataToJSON = async (): Promise<string> => {
 
 export const importDataFromJSON = async (jsonString: string): Promise<number> => {
     try {
-        const data = JSON.parse(jsonString);
-        if (data.app !== "VitreonNotes" || !Array.isArray(data.notes)) {
-            throw new Error("Invalid format");
+        const rawData = JSON.parse(jsonString);
+        let notesToImport: any[] = [];
+
+        // 1. Vitreon Format
+        if (rawData.app === "VitreonNotes" && Array.isArray(rawData.notes)) {
+            notesToImport = rawData.notes;
+        } 
+        // 2. Google Keep Format (or array of Keep notes)
+        else {
+            const items = Array.isArray(rawData) ? rawData : [rawData];
+            for (const item of items) {
+                // Determine if it looks conceptually like a Keep note
+                if (item.textContent !== undefined || item.title !== undefined) {
+                    const createdAtUnix = item.createdTimestampUsec ? Math.floor(item.createdTimestampUsec / 1000) : Date.now();
+                    const updatedAtUnix = item.userEditedTimestampUsec ? Math.floor(item.userEditedTimestampUsec / 1000) : createdAtUnix;
+                    
+                    notesToImport.push({
+                        id: crypto.randomUUID(),
+                        title: item.title || "",
+                        content: item.textContent || "",
+                        category: "uncategorized",
+                        tags: ["Google Keep"],
+                        color: "slate",
+                        isPinned: item.isPinned === true,
+                        isArchived: item.isArchived === true,
+                        attachments: [],
+                        isChecklist: false,
+                        order: 0,
+                        createdAt: createdAtUnix,
+                        updatedAt: updatedAtUnix
+                    });
+                }
+            }
         }
+
+        if (notesToImport.length === 0) {
+            throw new Error("Invalid format or no adaptable notes found");
+        }
+
         let count = 0;
-        for (const note of data.notes) {
-            // Ensure ID exists
-            if (!note.id) note.id = crypto.randomUUID();
+        for (let note of notesToImport) {
+            // Prevenir descartar o sustituir notas existentes forzando un ID nuevo al importar.
+            note.id = crypto.randomUUID();
+            
+            // Asignar arreglos vacios si son inexistentes por compatibilidad de interfaz
+            note.attachments = note.attachments || [];
+            note.images = note.images || [];
+            note.drawings = note.drawings || [];
+            note.voiceNotes = note.voiceNotes || [];
+            note.tags = note.tags || [];
+
             await saveNote(note);
             count++;
         }

@@ -40,6 +40,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const [layoutMode, setLayoutMode] = useState<'grid' | 'list' | 'card'>(localStorage.getItem('vitreon_layout') as any || 'grid');
     const [draggedId, setDraggedId] = useState<string | null>(null);
     const [dropId, setDropId] = useState<string | null>(null);
+    const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+    const showToast = (msg: string) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 3000);
+    };
 
     // Filtering logic
     let filtered = [...notes];
@@ -91,7 +97,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const startVoiceSearch = () => {
         const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
         if (!SpeechRecognition) {
-            alert(t('speechNotSupported'));
+            showToast(t('speechNotSupported'));
             return;
         }
 
@@ -244,7 +250,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             
             <div className={`
                 px-6 pb-20 stagger-4 w-full
-                ${layoutMode === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 items-start' : 'flex flex-col gap-3'}
+                ${layoutMode === 'grid' ? 'columns-2 gap-4' : 'flex flex-col gap-3'}
                 ${layoutMode === 'card' ? 'max-w-2xl mx-auto w-full' : ''}
             `}>
                 {mainList.map((note, idx) => (
@@ -259,7 +265,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         onTouchStart={(e) => handleDragStart(e, note.id)}
                         onTouchMove={handleTouchMove}
                         onTouchEnd={handleTouchEnd}
-                        className={`transition-all duration-300 w-full ${draggedId === note.id ? 'opacity-40 scale-95 rotate-2' : 'opacity-100'} ${dropId === note.id ? 'scale-105 rounded-[32px] ring-2 ring-indigo-500/50 p-1' : ''}`}
+                        className={`transition-all duration-300 w-full ${layoutMode === 'grid' ? 'inline-block break-inside-avoid mb-4' : ''} ${draggedId === note.id ? 'opacity-40 scale-95 rotate-2' : 'opacity-100'} ${dropId === note.id ? 'scale-105 rounded-[32px] ring-2 ring-indigo-500/50 p-1' : ''}`}
                     >
                         <NoteCard 
                             note={note} category={categories.find(c => c.id === note.category)} 
@@ -280,6 +286,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     </div>
                 )}
             </div>
+
+            {toastMsg && (
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 px-6 py-3 glass-panel bg-red-500/90 dark:bg-red-600/90 text-white rounded-full font-bold text-sm shadow-xl shadow-red-500/20 z-[100] animate-in slide-in-from-bottom-5 fade-in">
+                    {toastMsg}
+                </div>
+            )}
         </div>
     );
 };

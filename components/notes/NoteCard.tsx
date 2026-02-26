@@ -27,8 +27,9 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
             ${isCarousel ? 'snap-start w-[280px] h-64' : ''}
             ${isList ? 'flex flex-row items-center h-24 mb-2 w-full' : ''}
             ${isCard ? 'flex flex-col h-auto mb-4 w-full' : ''}
-            ${layout === 'grid' ? 'flex flex-col h-auto break-inside-avoid mb-4' : ''}`}
+            ${layout === 'grid' ? 'flex flex-col h-auto' : ''} border border-${category?.color || 'slate'}-500/20`}
         >
+            <div className={`absolute inset-0 bg-${category?.color || 'slate'}-500/5 pointer-events-none mix-blend-multiply dark:mix-blend-screen`}></div>
             {/* Quick Pin Toggle */}
             {onPin && !note.deletedAt && (
                 <button 
@@ -62,15 +63,15 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
             )}
 
             {note.isLocked ? (
-                <div className={`flex items-center justify-center text-slate-500 ${isList ? 'w-full' : 'h-full py-12 flex-col'}`}>
+                <div className={`flex items-center justify-center text-slate-500 ${isList ? 'w-full' : (layout === 'grid' ? 'h-auto py-12 flex-col' : 'h-full py-12 flex-col')}`}>
                     <span className={`material-symbols-rounded ${isList ? 'text-2xl mr-4' : 'text-4xl mb-2'}`}>lock</span>
                     <span className="text-sm font-bold tracking-widest uppercase opacity-60">{t('locked')}</span>
                 </div>
             ) : (
-                <div className={`flex ${isList ? 'flex-row w-full' : 'flex-col h-full'}`}>
+                <div className={`flex ${isList ? 'flex-row w-full' : `flex-col ${layout === 'grid' ? 'h-auto' : 'h-full'}`}`}>
                     {/* Media Header */}
-                    {(isCarousel || isCard || ((note.attachments?.length > 0 || note.images.length > 0 || note.drawings.length > 0) && !isList)) && (
-                        <div className={`relative shrink-0 ${(note.attachments?.length > 0 || note.images.length > 0 || note.drawings.length > 0) ? 'bg-white' : ''} ${isCarousel ? 'h-36' : (isCard ? 'h-48' : ((note.attachments?.length > 0 || note.images.length > 0 || note.drawings.length > 0) ? 'h-32' : 'h-0'))}`}>
+                    {(isCarousel || isCard || ((note.attachments?.length > 0 || note.images?.length > 0 || note.drawings?.length > 0) && !isList)) && (
+                        <div className={`relative shrink-0 ${(note.attachments?.length > 0 || note.images?.length > 0 || note.drawings?.length > 0) ? 'bg-white' : ''} ${isCarousel ? 'h-36' : (isCard ? 'h-48' : ((note.attachments?.length > 0 || note.images?.length > 0 || note.drawings?.length > 0) ? 'h-32' : 'h-0'))}`}>
                             {note.attachments?.length > 0 ? (
                                 note.attachments[0].type === 'voice' ? (
                                     <div className="w-full h-full bg-indigo-500/10 flex items-center justify-center">
@@ -79,9 +80,9 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
                                 ) : (
                                     <img src={note.attachments[0].data} alt="Attachment" className={`w-full h-full ${note.attachments[0].type === 'image' ? 'object-cover' : 'object-contain p-2'}`} />
                                 )
-                            ) : note.images.length > 0 ? (
+                            ) : note.images?.length > 0 ? (
                                 <img src={note.images[0]} alt="Note" className="w-full h-full object-cover" />
-                            ) : note.drawings.length > 0 ? (
+                            ) : note.drawings?.length > 0 ? (
                                 <img src={note.drawings[0]} alt="Drawing" className="w-full h-full object-contain p-2" />
                             ) : (
                                 <div className={`w-full h-full bg-gradient-to-br from-${category?.color || 'indigo'}-500/20 to-transparent flex items-center justify-center`}>
@@ -91,8 +92,8 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
                         </div>
                     )}
 
-                    {isList && (note.attachments?.length > 0 || note.images.length > 0 || note.drawings.length > 0) && (
-                        <div className={`w-24 h-full shrink-0 ${(note.attachments?.some(a => a.type === 'drawing') || (note.drawings.length > 0 && note.images.length === 0)) ? 'bg-white' : ''}`}>
+                    {isList && (note.attachments?.length > 0 || note.images?.length > 0 || note.drawings?.length > 0) && (
+                        <div className={`w-24 h-full shrink-0 ${(note.attachments?.some(a => a.type === 'drawing') || ((note.drawings?.length || 0) > 0 && (note.images?.length || 0) === 0)) ? 'bg-white' : ''}`}>
                              {note.attachments?.length > 0 ? (
                                  note.attachments[0].type === 'voice' ? (
                                      <div className="w-full h-full bg-indigo-500/10 flex items-center justify-center">
@@ -102,25 +103,25 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
                                      <img src={note.attachments[0].data} alt="Note" className={`w-full h-full ${note.attachments[0].type === 'image' ? 'object-cover' : 'object-contain p-2'}`} />
                                  )
                              ) : (
-                                 <img src={note.images[0] || note.drawings[0]} alt="Note" className={`w-full h-full ${note.images.length > 0 ? 'object-cover' : 'object-contain p-2'}`} />
+                                 <img src={(note.images && note.images[0]) || (note.drawings && note.drawings[0])} alt="Note" className={`w-full h-full ${(note.images?.length || 0) > 0 ? 'object-cover' : 'object-contain p-2'}`} />
                              )}
                         </div>
                     )}
 
-                    <div className={`p-5 flex-1 flex flex-col justify-between overflow-hidden`}>
+                    <div className={`p-5 flex-1 flex flex-col justify-between overflow-hidden relative z-10`}>
                         <div>
                             <div className="flex justify-between items-start mb-1 flex-col-reverse">
-                                <h3 className="font-bold text-lg text-slate-800 dark:text-white group-hover:text-indigo-500 transition-colors tracking-tight">{note.title || t('untitled')}</h3>
+                                <h3 className="font-bold text-base text-slate-800 dark:text-white group-hover:text-indigo-500 transition-colors tracking-tight">{note.title || t('untitled')}</h3>
                                 {!isCarousel && (
                                     <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest shrink-0 ml-2">
                                         {new Date(note.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric'})}
                                     </span>
                                 )}
                             </div>
-                            <div className={`text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-small ${isList ? 'line-clamp-1' : 'line-clamp-6'}`}>
+                            <div className={`text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed font-medium ${isList ? 'line-clamp-1' : 'line-clamp-[16]'}`}>
                                 {note.isChecklist ? (
                                     <div className="space-y-1.5 mt-1">
-                                        {(note.content || "").split('\n').slice(0, isList ? 1 : 5).map((line, idx) => {
+                                        {(note.content || "").split('\n').slice(0, isList ? 1 : 12).map((line, idx) => {
                                             const isChecked = line.startsWith('[x] ');
                                             const text = line.replace(/^\[[ x]\] /, '');
                                             if (!text.trim() && idx > 0) return null;
@@ -134,38 +135,49 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
                                                             else lines[idx] = '[x] ' + text;
                                                             onUpdate?.({ ...note, content: lines.join('\n'), updatedAt: Date.now() });
                                                         }}
-                                                        className={`w-4 h-4 rounded-md border transition-all flex items-center justify-center shrink-0 ${isChecked ? 'bg-indigo-500 border-indigo-500' : 'border-slate-300 dark:border-slate-600'}`}
+                                                        className={`w-4 h-4 rounded-md border transition-all flex items-center justify-center shrink-0 ${isChecked ? `bg-${category?.color || 'indigo'}-500 border-${category?.color || 'indigo'}-500` : 'border-slate-300 dark:border-slate-600'}`}
                                                     >
                                                         {isChecked && <span className="material-symbols-rounded text-white text-[10px] font-bold">check</span>}
                                                     </button>
-                                                    <span className={`text-xs truncate ${isChecked ? 'line-through opacity-50' : ''}`}>{text || t('taskItem')}</span>
+                                                    <span className={`text-[12px] truncate ${isChecked ? 'line-through opacity-50' : ''}`}>{text || t('taskItem')}</span>
                                                 </div>
                                             );
                                         })}
-                                        {!isList && note.content.split('\n').length > 5 && (
-                                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mt-1">
-                                                + {note.content.split('\n').length - 5} {t('more')}
+                                        {!isList && note.content.split('\n').length > 12 && (
+                                            <p className={`text-[10px] font-bold text-${category?.color || 'indigo'}-500 uppercase tracking-widest mt-1`}>
+                                                + {note.content.split('\n').length - 12} {t('more')}
                                             </p>
                                         )}
                                     </div>
                                 ) : (
-                                    <RichText content={note.content || t('noContent')} className={isList ? "line-clamp-1" : "line-clamp-6"} />
+                                    <RichText content={note.content || t('noContent')} className={isList ? "line-clamp-1" : "line-clamp-[16]"} />
                                 )}
                             </div>
                         </div>
 
                         {(!isCarousel) && (
-                            <div className={`flex items-center justify-between mt-2 ${isList ? 'hidden' : ''}`}>
-                                <div className="flex items-center gap-2">
-                                     <div className={`w-7 h-7 rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center text-${category?.color || 'slate'}-500 dark:text-${category?.color || 'slate'}-400`}>
-                                         <span className="material-symbols-rounded text-base">{category?.icon || 'description'}</span>
-                                     </div>
-                                     <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{t(category?.id as any) || category?.name || t('general')}</span>
-                                </div>
-                                <div className="flex gap-2">
-                                    {(note.attachments?.some(a => a.type === 'image') || note.images.length > 0) && <span className="material-symbols-rounded text-sm text-slate-400 dark:text-slate-600">image</span>}
-                                    {(note.attachments?.some(a => a.type === 'voice') || note.voiceNotes.length > 0) && <span className="material-symbols-rounded text-sm text-slate-400 dark:text-slate-600">mic</span>}
-                                    {(note.attachments?.some(a => a.type === 'drawing') || note.drawings.length > 0) && <span className="material-symbols-rounded text-sm text-slate-400 dark:text-slate-600">draw</span>}
+                            <div className={`mt-4 ${isList ? 'hidden' : ''} relative z-10`}>
+                                {note.tags && note.tags.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5 mb-3">
+                                        {note.tags.map(tag => (
+                                            <span key={tag} className={`text-[9.5px] font-bold uppercase tracking-widest py-1 px-2 rounded-md bg-${category?.color || 'slate'}-500/15 text-${category?.color || 'slate'}-600 dark:text-${category?.color || 'slate'}-400`}>
+                                                #{tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                         <div className={`w-7 h-7 rounded-lg bg-black/5 dark:bg-white/5 flex items-center justify-center text-${category?.color || 'slate'}-500 dark:text-${category?.color || 'slate'}-400`}>
+                                             <span className="material-symbols-rounded text-base">{category?.icon || 'description'}</span>
+                                         </div>
+                                         <span className="text-[9px] font-bold uppercase tracking-widest text-slate-500">{t(category?.id as any) || category?.name || t('general')}</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        {(note.attachments?.some(a => a.type === 'image') || (note.images?.length || 0) > 0) && <span className="material-symbols-rounded text-[15px] text-slate-400 dark:text-slate-500">image</span>}
+                                        {(note.attachments?.some(a => a.type === 'voice') || (note.voiceNotes?.length || 0) > 0) && <span className="material-symbols-rounded text-[15px] text-slate-400 dark:text-slate-500">mic</span>}
+                                        {(note.attachments?.some(a => a.type === 'drawing') || (note.drawings?.length || 0) > 0) && <span className="material-symbols-rounded text-[15px] text-slate-400 dark:text-slate-500">draw</span>}
+                                    </div>
                                 </div>
                             </div>
                         )}

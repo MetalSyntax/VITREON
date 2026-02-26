@@ -8,7 +8,7 @@ import { useI18n } from '../../services/i18n';
 interface NoteEditorProps {
     initialNote: Note;
     categories: Category[];
-    onSave: (note: Note) => void;
+    onSave: (note: Note, closeEditor?: boolean) => void;
     onDelete: (id: string) => void;
     onArchive: (note: Note) => void;
     onPin: (note: Note) => void;
@@ -83,7 +83,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
 
     const currentCat = categories.find(c => c.id === note.category);
 
-    const triggerSave = () => onSave(note);
+    const triggerSave = () => onSave(note, true);
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -136,7 +136,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
         const updatedNote = { ...note, content: updatedContent, updatedAt: Date.now() };
         setNote(updatedNote);
         if (isViewMode) {
-            onSave(updatedNote);
+            onSave(updatedNote, false);
         }
     };
 
@@ -331,10 +331,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 </div>
 
                 {isViewMode ? (
-                    <h1 className="text-4xl font-bold text-slate-800 dark:text-white tracking-tight leading-tight">{note.title || t('untitled')}</h1>
+                    <h1 className="select-text text-4xl font-bold text-slate-800 dark:text-white tracking-tight leading-tight">{note.title || t('untitled')}</h1>
                 ) : (
                     <input
-                        className="w-full bg-transparent text-4xl font-bold placeholder-slate-300 dark:placeholder-slate-700 border-none focus:ring-0 outline-none p-0 mb-6 text-slate-800 dark:text-white tracking-tight  stagger-1"
+                        className="select-text w-full bg-transparent text-4xl font-bold placeholder-slate-300 dark:placeholder-slate-700 border-none focus:ring-0 outline-none p-0 mb-6 text-slate-800 dark:text-white tracking-tight  stagger-1"
                         placeholder={t('title')}
                         value={note.title}
                         onChange={e => setNote({ ...note, title: e.target.value })}
@@ -357,10 +357,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                                             {isChecked && <span className="material-symbols-rounded text-white text-lg font-bold">check</span>}
                                         </button>
                                         {isViewMode ? (
-                                            <span className={`text-lg transition-all ${isChecked ? 'line-through text-slate-400 opacity-60' : 'text-slate-700 dark:text-slate-300'}`}>{text}</span>
+                                            <span className={`select-text text-lg transition-all ${isChecked ? 'line-through text-slate-400 opacity-60' : 'text-slate-700 dark:text-slate-300'}`}>{text}</span>
                                         ) : (
                                             <input 
-                                                className={`w-full bg-transparent border-none focus:ring-0 outline-none p-0 text-lg text-slate-700 dark:text-slate-300 placeholder-slate-400 dark:placeholder-slate-600 ${isChecked ? 'line-through opacity-50' : ''}`}
+                                                className={`select-text w-full bg-transparent border-none focus:ring-0 outline-none p-0 text-lg text-slate-700 dark:text-slate-300 placeholder-slate-400 dark:placeholder-slate-600 ${isChecked ? 'line-through opacity-50' : ''}`}
                                                 value={text}
                                                 placeholder={t('taskItem')}
                                                 onChange={(e) => {
@@ -396,11 +396,11 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                         </div>
                     ) : (
                         isViewMode ? (
-                            <RichText content={note.content} className="text-xl leading-relaxed text-slate-700 dark:text-slate-300 min-h-[10vh]  stagger-2" />
+                            <RichText content={note.content} className="select-text text-xl leading-relaxed text-slate-700 dark:text-slate-300 min-h-[10vh]  stagger-2" />
                         ) : (
                             <textarea
                                 ref={textareaRef}
-                                className="w-full min-h-[40vh] bg-transparent resize-none border-none focus:ring-0 outline-none p-0 text-xl leading-relaxed text-slate-700 dark:text-slate-300 placeholder-slate-300 dark:placeholder-slate-700 font-medium  stagger-2"
+                                className="select-text w-full min-h-[40vh] bg-transparent resize-none border-none focus:ring-0 outline-none p-0 text-xl leading-relaxed text-slate-700 dark:text-slate-300 placeholder-slate-300 dark:placeholder-slate-700 font-medium  stagger-2"
                                 placeholder={t('content')}
                                 value={note.content}
                                 onChange={e => setNote({ ...note, content: e.target.value })}

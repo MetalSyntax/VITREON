@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Note, Category, ThemeMode } from './types';
 import { saveNote, getNotes, deleteNote, exportDataToJSON, importDataFromJSON, cleanupTrash } from './services/storage';
+import { initGoogleDrive, syncToGoogleDrive, downloadFromGoogleDrive, listGoogleDriveBackups } from './services/googleDrive';
+import { GDriveModal } from './components/modals/GDriveModal';
 import { PinModal } from './components/modals/PinModal';
 import { ConfirmModal } from './components/modals/ConfirmModal';
 import { HomeView } from './features/home/HomeView';
@@ -51,6 +53,7 @@ export default function App() {
     const [userBio, setUserBio] = useState(localStorage.getItem('vitreon_user_bio') || 'Digital minimalist and note-taking enthusiast.');
     const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(!localStorage.getItem('vitreon_onboarded'));
     const [showGDPR, setShowGDPR] = useState<boolean>(!localStorage.getItem('vitreon_accepted_gdpr'));
+    const [gdriveModal, setGdriveModal] = useState<{ open: boolean, files: any[] }>({ open: false, files: [] });
 
     // Initial Load
     useEffect(() => {
@@ -126,7 +129,7 @@ export default function App() {
         setView('editor');
     };
 
-    const handleSaveNote = async (updatedNote: Note) => {
+    const handleSaveNote = async (updatedNote: Note, closeEditor: boolean = true) => {
         let titleToSave = updatedNote.title;
         if (!titleToSave) {
             titleToSave = updatedNote.isChecklist ? 'Checklist' : (updatedNote.content.split('\n')[0].substring(0, 30) || 'Untitled Note');
@@ -134,10 +137,15 @@ export default function App() {
         const toSave = { ...updatedNote, title: titleToSave, updatedAt: Date.now() };
         await saveNote(toSave);
         setNotes(await getNotes());
-        setCurrentNote(null);
-        if (view !== 'home') window.history.back();
-        setView('home');
-        showToast(t('noteSaved'));
+        
+        if (closeEditor) {
+            setCurrentNote(null);
+            if (view !== 'home') window.history.back();
+            setView('home');
+            showToast(t('noteSaved'));
+        } else {
+            setCurrentNote(toSave);
+        }
     };
 
     const handleDeleteNote = (id: string) => {
@@ -229,7 +237,7 @@ export default function App() {
                 setPinModal({ ...pinModal, open: false });
                 setView('editor');
             } else {
-                alert(t('incorrectPin'));
+                showToast(t('incorrectPin'));
             }
         }
     };
@@ -237,7 +245,7 @@ export default function App() {
     const handleToggleBiometrics = async () => {
         const isSupported = await BiometricsService.isSupported();
         if (!isSupported) {
-            alert(t('biometricsNotSupported'));
+            showToast(t('biometricsNotSupported'));
             return;
         }
 
@@ -336,15 +344,71 @@ export default function App() {
     };
 
     const handleAddCategory = (cat: Category) => {
-        const updated = [...categories, cat];
+        let updated;
+        if (categories.some(c => c.id === cat.id)) {
+            updated = categories.map(c => c.id === cat.id ? cat : c);
+        } else {
+            updated = [...categories, cat];
+        }
         setCategories(updated);
         localStorage.setItem('vitreon_categories', JSON.stringify(updated));
-        showToast(t('categoryAdded'));
+        showToast(updated.length === categories.length ? t('saved' as any) || t('categoryAdded') : t('categoryAdded'));
+    };
+
+    const handleExportGDrive = async () => {
+        setIsLoading(true);
+        try {
+            await initGoogleDrive();
+            const json = await exportDataToJSON();
+            // Just verifying it is exactly the same as local export
+            await syncToGoogleDrive(json);
+            showToast(t('exported'));
+        } catch (e: any) {
+            console.error(e);
+            showToast("Google Drive Sync Failed");
+        }
+        setIsLoading(false);
+    };
+
+    const handleImportGDrive = async () => {
+        setIsLoading(true);
+        try {
+            await initGoogleDrive();
+            const files = await listGoogleDriveBackups();
+            if (files && files.length > 0) {
+                setGdriveModal({ open: true, files });
+            } else {
+                showToast("No backups found on Google Drive");
+            }
+        } catch (e: any) {
+            console.error(e);
+            showToast("Google Drive Import Failed");
+        }
+        setIsLoading(false);
+    };
+
+    const processGDriveImport = async (fileId: string) => {
+        setIsLoading(true);
+        setGdriveModal({ open: false, files: [] });
+        try {
+            const jsonContent = await downloadFromGoogleDrive(fileId);
+            if (jsonContent) {
+                const count = await importDataFromJSON(jsonContent);
+                showToast(t('imported' as any).replace('{count}', String(count)));
+                const updatedNotes = await getNotes();
+                setNotes(updatedNotes);
+            }
+        } catch (e) {
+            showToast("Restore failed");
+            console.error(e);
+        }
+        setIsLoading(false);
     };
 
     const handleDeleteCategory = (id: string) => {
         if (id === DEFAULT_CATEGORY || CATEGORIES(t).some(c => c.id === id)) {
-            return alert(t('categoryDeleteError'));
+            showToast(t('categoryDeleteError'));
+            return;
         }
         const updated = categories.filter(c => c.id !== id);
         setCategories(updated);
@@ -451,8 +515,8 @@ export default function App() {
                             onImport={handleImport} 
                             onExportMD={handleExportMarkdown}
                             onImportMD={() => document.getElementById('md-import')?.click()}
-                            onExportGDrive={() => showToast('Google Drive Export: ' + t('noNotesExport'))}
-                            onImportGDrive={() => showToast('Google Drive Import: ' + t('importFailed'))}
+                            onExportGDrive={handleExportGDrive}
+                            onImportGDrive={handleImportGDrive}
                         />
                     )}
                     {view === 'profile' && (
@@ -542,6 +606,13 @@ export default function App() {
                 }} 
             />
             {toastMsg && <div className="fixed top-6 left-1/2 transform -translate-x-1/2 z-[60] px-6 py-3 rounded-full glass-panel shadow-xl text-sm font-semibold text-slate-800 dark:text-white flex items-center gap-2 animate-in fade-in slide-in-from-top-2"><span className="material-symbols-rounded text-green-500 text-lg">check_circle</span>{toastMsg}</div>}
+            
+            <GDriveModal 
+                isOpen={gdriveModal.open} 
+                files={gdriveModal.files} 
+                onClose={() => setGdriveModal({ open: false, files: [] })}
+                onSelect={(fileId) => processGDriveImport(fileId)}
+            />
         </div>
     );
 }

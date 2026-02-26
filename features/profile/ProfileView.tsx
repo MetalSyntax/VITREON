@@ -28,6 +28,22 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     const [userName, setUserName] = useState(initialUserName);
     const [userEmail, setUserEmail] = useState(initialUserEmail);
     const [userBio, setUserBio] = useState(initialUserBio);
+    const [secretTaps, setSecretTaps] = useState(0);
+    const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+    const showToast = (msg: string) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 3000);
+    };
+
+    const handleSecretTap = () => {
+        const newCount = secretTaps + 1;
+        setSecretTaps(newCount);
+        if (newCount === 10) {
+            localStorage.setItem('vitreon_dev_gdrive', 'true');
+            showToast("Developer mode unlocked: Google Drive sync enabled");
+        }
+    };
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -181,7 +197,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
                 <div className="flex flex-col items-center mb-10 animate-smooth-in">
                     <div className="relative mb-6">
-                        <div className="w-32 h-32 rounded-[44px] bg-gradient-to-tr from-indigo-500 via-purple-500 to-rose-500 p-1 shadow-2xl shadow-indigo-500/20 animate-float">
+                        <div onClick={handleSecretTap} className="w-32 h-32 rounded-[44px] bg-gradient-to-tr from-indigo-500 via-purple-500 to-rose-500 p-1 shadow-2xl shadow-indigo-500/20 animate-float cursor-pointer">
                             <div className="w-full h-full rounded-[42px] bg-white dark:bg-[#030712] flex items-center justify-center overflow-hidden">
                                 {profileImage ? (
                                     <img src={profileImage} alt="Profile" className="w-full h-full object-cover" />
@@ -253,6 +269,12 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                     </div>
                 </div>
             </div>
+            
+            {toastMsg && (
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 px-6 py-3 glass-panel bg-indigo-500/90 dark:bg-indigo-600/90 text-white rounded-full font-bold text-sm shadow-xl shadow-indigo-500/20 z-[100] animate-in slide-in-from-bottom-5 fade-in">
+                    {toastMsg}
+                </div>
+            )}
         </div>
     );
 };

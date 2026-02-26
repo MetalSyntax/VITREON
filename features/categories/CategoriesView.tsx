@@ -7,7 +7,7 @@ interface CategoriesViewProps {
     categories: Category[];
     notes: Note[];
     onCategoryClick: (category: Category) => void;
-    onAddCategory: (cat: Partial<Category>) => void;
+    onAddCategory: (cat: Category) => void;
     onDeleteCategory: (id: string) => void;
 }
 
@@ -19,19 +19,27 @@ const TIP_KEYS = [
     { title: "searchPlus", text: "tip4Text", icon: "search" }
 ] as const;
 
-const CategoryCard: React.FC<{ category: Category; count: number; onClick: () => void; onDelete: (e: React.MouseEvent) => void }> = ({ category, count, onClick, onDelete }) => {
+const CategoryCard: React.FC<{ category: Category; count: number; onClick: () => void; onDelete: (e: React.MouseEvent) => void; onEdit: (e: React.MouseEvent) => void }> = ({ category, count, onClick, onDelete, onEdit }) => {
     const { t } = useI18n();
     const styles = `from-${category.color}-500/20 to-${category.color}-600/5 text-${category.color}-500 dark:text-${category.color}-400 border-${category.color}-500/20`;
 
     return (
         <div onClick={onClick} className={`glass-card rounded-[32px] p-6 flex flex-col justify-between aspect-square cursor-pointer bg-gradient-to-br ${styles} relative group`}>
-            <button 
-                onClick={onDelete}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 dark:bg-white/5 text-slate-600 dark:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-500 hover:text-white"
-            >
-                <span className="material-symbols-rounded text-sm">close</span>
-            </button>
-            <div className="w-14 h-14 rounded-3xl bg-white/30 dark:bg-white/10 flex items-center justify-center shadow-inner">
+            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button 
+                    onClick={onEdit}
+                    className="w-8 h-8 rounded-full bg-white/20 dark:bg-white/5 text-slate-600 dark:text-white flex items-center justify-center hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-indigo-500 transition-colors"
+                >
+                    <span className="material-symbols-rounded text-sm">edit</span>
+                </button>
+                <button 
+                    onClick={onDelete}
+                    className="w-8 h-8 rounded-full bg-white/20 dark:bg-white/5 text-slate-600 dark:text-white flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
+                >
+                    <span className="material-symbols-rounded text-sm">close</span>
+                </button>
+            </div>
+            <div className="w-14 h-14 rounded-3xl bg-white/30 dark:bg-white/10 flex items-center justify-center shadow-inner mt-2">
                 <span className="material-symbols-rounded text-2xl">{category.icon}</span>
             </div>
             <div>
@@ -45,6 +53,7 @@ const CategoryCard: React.FC<{ category: Category; count: number; onClick: () =>
 export const CategoriesView: React.FC<CategoriesViewProps> = ({ categories, notes, onCategoryClick, onAddCategory, onDeleteCategory }) => {
     const { t } = useI18n();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingCategory, setEditingCategory] = useState<Category | null>(null);
     const [tipIndex, setTipIndex] = useState(0);
     
     useEffect(() => {
@@ -70,13 +79,14 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ categories, note
                             category={cat} count={counts[cat.id] || 0} 
                             onClick={() => onCategoryClick(cat)} 
                             onDelete={(e) => { e.stopPropagation(); onDeleteCategory(cat.id); }}
+                            onEdit={(e) => { e.stopPropagation(); setEditingCategory(cat); setIsModalOpen(true); }}
                         />
                     </div>
                 ))}
                 
                 {/* New Category Card */}
                 <div 
-                    onClick={() => setIsModalOpen(true)}
+                    onClick={() => { setEditingCategory(null); setIsModalOpen(true); }}
                     className="glass-card rounded-[32px] p-6 flex flex-col items-center justify-center aspect-square cursor-pointer border-dashed border-2 border-slate-300 dark:border-white/20 bg-white dark:bg-white/5 hover:bg-slate-50 dark:hover:bg-white/10 transition-all group animate-smooth-fade"
                     style={{ animationDelay: `${(categories.length + 1) * 100}ms` }}
                 >
@@ -101,7 +111,12 @@ export const CategoriesView: React.FC<CategoriesViewProps> = ({ categories, note
                 </div>
             </div>
 
-            <CategoryModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={onAddCategory} />
+            <CategoryModal 
+                isOpen={isModalOpen} 
+                onClose={() => { setIsModalOpen(false); setEditingCategory(null); }} 
+                onSave={(cat) => { onAddCategory(cat); setIsModalOpen(false); setEditingCategory(null); }} 
+                initialCategory={editingCategory}
+            />
         </div>
     );
 };

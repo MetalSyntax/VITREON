@@ -11,6 +11,7 @@ export const VoiceNoteModal: React.FC<VoiceNoteModalProps> = ({ isOpen, onClose,
     const { t } = useI18n();
     const [isRecording, setIsRecording] = useState(false);
     const [duration, setDuration] = useState(0);
+    const [toastMsg, setToastMsg] = useState<string | null>(null);
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const chunksRef = useRef<Blob[]>([]);
     const timerRef = useRef<number | null>(null);
@@ -20,6 +21,11 @@ export const VoiceNoteModal: React.FC<VoiceNoteModalProps> = ({ isOpen, onClose,
             stopRecording();
         }
     }, [isOpen]);
+
+    const showToast = (msg: string) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(null), 3000);
+    };
 
     const startRecording = async () => {
         try {
@@ -49,7 +55,7 @@ export const VoiceNoteModal: React.FC<VoiceNoteModalProps> = ({ isOpen, onClose,
             }, 1000);
         } catch (err) {
             console.error("Failed to start recording", err);
-            alert(t('micDenied'));
+            showToast(t('micDenied'));
         }
     };
 
@@ -105,6 +111,12 @@ export const VoiceNoteModal: React.FC<VoiceNoteModalProps> = ({ isOpen, onClose,
                     )}
                 </div>
             </div>
+            
+            {toastMsg && (
+                <div className="fixed bottom-24 left-1/2 -translate-x-1/2 px-6 py-3 glass-panel bg-red-500/90 dark:bg-red-600/90 text-white rounded-full font-bold text-sm shadow-xl shadow-red-500/20 z-[80] animate-in slide-in-from-bottom-5 fade-in">
+                    {toastMsg}
+                </div>
+            )}
         </div>
     );
 };

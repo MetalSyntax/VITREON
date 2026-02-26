@@ -1,4 +1,4 @@
-# 🖋️ Vitreon Notes
+# 🖋️ Vitreon Notes v1.1.0
 
 **A Premium, Secure, and Elegant Markdown Note-Taking Experience**
 
@@ -39,7 +39,7 @@
 - **Frontend:** React, TypeScript, Tailwind CSS
 - **Database:** IndexedDB (Local-First Architecture)
 - **Security:** Web Crypto API (AES-GCM, PBKDF2)
-- **APIs:** Google Drive API (GAPI + GIS)
+- **APIs:** Google Drive API (Google Identity Services)
 - **Design:** Custom Glassmorphic CSS System
 
 ---
@@ -63,7 +63,6 @@
 
     ```env
     VITE_GOOGLE_DRIVE_CLIENT_ID=your_id
-    VITE_GOOGLE_DRIVE_API_KEY=your_key
     VITE_ENCRYPTION_SALT=secure_random_salt
     VITE_ENCRYPTION_KEY=your_master_secret
     ```
@@ -83,7 +82,6 @@
 2.  **Import the project** in the [Vercel Dashboard](https://vercel.com/new).
 3.  **Configure Environment Variables** in the Vercel project settings:
     - `VITE_GOOGLE_DRIVE_CLIENT_ID`
-    - `VITE_GOOGLE_DRIVE_API_KEY`
     - `VITE_ENCRYPTION_SALT`
     - `VITE_ENCRYPTION_KEY`
 4.  **Deploy!** Vercel will automatically detect the Vite setup and build the project.
@@ -93,6 +91,17 @@
 ## 🔐 Security Disclaimer
 
 Vitreon Notes is a local-first application. Your encryption keys (derived from your `VITE_ENCRYPTION_SALT` and `VITE_ENCRYPTION_KEY`) are essential to decrypt your data. **If you lose these variables or change them, previously encrypted notes will be unrecoverable.** Always keep a secure backup of your environment configuration.
+
+## 📊 Changelog
+
+### v1.1.0
+
+- **Google Drive Integration Refactor**: Migrated from outdated `gapi` to native `fetch`. Resolves API key vulnerabilities and 400 Bad Request errors.
+- **Drive Backup History Modal**: Automatically creates daily backup strings (`vitreon_backup_YYYY-MM-DD.json`) instead of overwriting, supported by a new sleek modal for restoring specific backups.
+- **Google Keep Importer Integration**: `.json` data files exported from Google Keep are now instantly recognized and formatted upon internal import. Protects against duplicate notes via auto-UUID generation.
+- **Improved Authentication UX**: Automatically captures cached access tokens dynamically to speed up login logic while bypassing redundant consent screens.
+- **Elegant Event Flow System**: Eradicated all native web `alert()` boxes globally. The entire system now utilizes stylized, animated `Toasts`.
+- **Intelligent Text Selection**: Granular text selection isolation inside notes rendering engine - disabled across UI elements to prioritize slick navigation.
 
 ---
 

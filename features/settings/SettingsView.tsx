@@ -17,6 +17,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     theme, setTheme, onExport, onImport, onExportMD, onImportMD, onExportGDrive, onImportGDrive 
 }) => {
     const { t, lang, setLang } = useI18n();
+    const [showGDrive, setShowGDrive] = React.useState(false);
+
+    React.useEffect(() => {
+        setShowGDrive(localStorage.getItem('vitreon_dev_gdrive') === 'true');
+    }, []);
 
     const languages = [
         { code: 'en', name: 'English' },
@@ -143,26 +148,28 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                         </div>
 
                         {/* Google Drive Section */}
-                        <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-black/5 dark:border-white/5 hidden">
-                            <button onClick={onExportGDrive} className="w-full flex items-center gap-4 p-6 rounded-[28px] bg-blue-500/5 dark:bg-blue-500/10 border-2 border-transparent hover:border-blue-500/30 transition-all group">
-                                <div className="w-12 h-12 rounded-2xl bg-blue-500 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
-                                    <span className="material-symbols-rounded">cloud_upload</span>
-                                </div>
-                                <div className="text-left">
-                                    <div className="font-bold text-slate-800 dark:text-white text-sm">{t('exportGDrive')}</div>
-                                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{t('googleDrive')}</div>
-                                </div>
-                            </button>
-                            <button onClick={onImportGDrive} className="w-full flex items-center gap-4 p-6 rounded-[28px] bg-blue-600/5 dark:bg-blue-600/10 border-2 border-transparent hover:border-blue-600/30 transition-all group">
-                                <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
-                                    <span className="material-symbols-rounded">cloud_download</span>
-                                </div>
-                                <div className="text-left">
-                                    <div className="font-bold text-slate-800 dark:text-white text-sm">{t('importGDrive')}</div>
-                                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{t('googleDrive')}</div>
-                                </div>
-                            </button>
-                        </div>
+                        {showGDrive && (
+                            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-black/5 dark:border-white/5">
+                                <button onClick={onExportGDrive} className="w-full flex items-center gap-4 p-6 rounded-[28px] bg-blue-500/5 dark:bg-blue-500/10 border-2 border-transparent hover:border-blue-500/30 transition-all group">
+                                    <div className="w-12 h-12 rounded-2xl bg-blue-500 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
+                                        <span className="material-symbols-rounded">cloud_upload</span>
+                                    </div>
+                                    <div className="text-left">
+                                        <div className="font-bold text-slate-800 dark:text-white text-sm">{t('exportGDrive')}</div>
+                                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{t('googleDrive')}</div>
+                                    </div>
+                                </button>
+                                <button onClick={onImportGDrive} className="w-full flex items-center gap-4 p-6 rounded-[28px] bg-blue-600/5 dark:bg-blue-600/10 border-2 border-transparent hover:border-blue-600/30 transition-all group">
+                                    <div className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center text-white shadow-lg group-hover:scale-110 transition-transform">
+                                        <span className="material-symbols-rounded">cloud_download</span>
+                                    </div>
+                                    <div className="text-left">
+                                        <div className="font-bold text-slate-800 dark:text-white text-sm">{t('importGDrive')}</div>
+                                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{t('googleDrive')}</div>
+                                    </div>
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

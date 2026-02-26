@@ -6,6 +6,7 @@ interface CategoryModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (cat: Category) => void;
+    initialCategory?: Category | null;
 }
 
 const COLORS = [
@@ -21,18 +22,34 @@ const ICONS = [
     'construction', 'volunteer_activism', 'rocket_launch', 'terminal'
 ];
 
-export const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, onSave }) => {
+export const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, onSave, initialCategory }) => {
     const { t } = useI18n();
     const [name, setName] = useState('');
     const [color, setColor] = useState('blue');
     const [icon, setIcon] = useState('description');
+
+    React.useEffect(() => {
+        if (isOpen) {
+            if (initialCategory) {
+                // Determine if name is a translation key (common pattern) or literal string
+                const localizedName = t(initialCategory.id as any);
+                setName(localizedName && localizedName !== initialCategory.id ? localizedName : initialCategory.name);
+                setColor(initialCategory.color);
+                setIcon(initialCategory.icon);
+            } else {
+                setName('');
+                setColor('blue');
+                setIcon('description');
+            }
+        }
+    }, [isOpen, initialCategory, t]);
 
     if (!isOpen) return null;
 
     const handleSave = () => {
         if (!name.trim()) return;
         onSave({
-            id: name.toLowerCase().replace(/\s+/g, '-'),
+            id: initialCategory ? initialCategory.id : name.toLowerCase().replace(/\s+/g, '-'),
             name,
             color,
             icon
@@ -44,7 +61,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, o
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="glass-card w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">{t('newCategory')}</h3>
+                <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">{initialCategory ? t('edit' as any) : t('newCategory')}</h3>
                 
                 <div className="mb-4">
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">{t('name')}</label>
@@ -86,7 +103,7 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, o
 
                 <div className="flex gap-3">
                     <button onClick={onClose} className="flex-1 py-3 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold transition-colors">{t('cancel')}</button>
-                    <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-500/20 transition-transform active:scale-95">{t('create')}</button>
+                    <button onClick={handleSave} className="flex-1 py-3 rounded-xl bg-indigo-500 text-white font-semibold shadow-lg shadow-indigo-500/20 transition-transform active:scale-95">{initialCategory ? t('save' as any) : t('create')}</button>
                 </div>
             </div>
         </div>
