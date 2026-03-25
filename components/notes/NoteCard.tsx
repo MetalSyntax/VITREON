@@ -22,8 +22,12 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
 
     return (
         <div 
-            onClick={onClick}
-            className={`glass-card rounded-[32px] cursor-pointer p-0 overflow-hidden relative group transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0
+            onClick={(e) => {
+                const selection = window.getSelection()?.toString();
+                if (selection) return; // Don't navigate if text is selected
+                onClick();
+            }}
+            className={`glass-card rounded-[32px] cursor-default p-0 overflow-hidden relative group transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0
             ${isCarousel ? 'snap-start w-[280px] h-64' : ''}
             ${isList ? 'flex flex-row items-center h-24 mb-2 w-full' : ''}
             ${isCard ? 'flex flex-col h-auto mb-4 w-full' : ''}
@@ -150,7 +154,9 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
                                         )}
                                     </div>
                                 ) : (
-                                    <RichText content={note.content || t('noContent')} className={isList ? "line-clamp-1" : "line-clamp-[16]"} />
+                                    <div className="select-text cursor-text" onClick={(e) => e.stopPropagation()}>
+                                        <RichText content={note.content || t('noContent')} className={isList ? "line-clamp-1" : "line-clamp-[16]"} />
+                                    </div>
                                 )}
                             </div>
                         </div>

@@ -53,6 +53,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     // Sorting
     filtered.sort((a, b) => {
         if (sortBy === 'alpha') return a.title.localeCompare(b.title);
+        const orderA = a.order ?? 0;
+        const orderB = b.order ?? 0;
+        if (orderA !== orderB) return orderB - orderA;
         return b.updatedAt - a.updatedAt;
     });
 
