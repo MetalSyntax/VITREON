@@ -11,8 +11,14 @@ const ENCRYPTION_SALT = import.meta.env.VITE_ENCRYPTION_SALT;
 
 /**
  * Derives a cryptographic key from the environment variables using PBKDF2.
+ * The key is cached after the first derivation to avoid repeating the
+ * expensive 100,000-iteration computation on every save/decrypt call.
  */
+let _cachedCryptoKey: CryptoKey | null = null;
+
 const getCryptoKey = async (): Promise<CryptoKey> => {
+    if (_cachedCryptoKey) return _cachedCryptoKey;
+
     const encoder = new TextEncoder();
     const baseKey = await window.crypto.subtle.importKey(
         "raw",
@@ -22,7 +28,7 @@ const getCryptoKey = async (): Promise<CryptoKey> => {
         ["deriveKey"]
     );
 
-    return window.crypto.subtle.deriveKey(
+    _cachedCryptoKey = await window.crypto.subtle.deriveKey(
         {
             name: "PBKDF2",
             salt: encoder.encode(ENCRYPTION_SALT),
@@ -34,6 +40,8 @@ const getCryptoKey = async (): Promise<CryptoKey> => {
         false,
         ["encrypt", "decrypt"]
     );
+
+    return _cachedCryptoKey;
 };
 
 const encryptData = async (data: string): Promise<{ iv: number[], cipher: number[] }> => {

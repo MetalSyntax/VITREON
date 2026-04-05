@@ -43,7 +43,8 @@ export default function App() {
     const [showFavorites, setShowFavorites] = useState(false);
     const [showArchived, setShowArchived] = useState(false);
     const [showTrash, setShowTrash] = useState(false);
-    const [confirmModal, setConfirmModal] = useState<{ open: boolean, noteId?: string, isPermanent?: boolean, isEmptyTrash?: boolean }>({ open: false });
+    const [confirmModal, setConfirmModal] = useState<{ open: boolean, noteId?: string, isPermanent?: boolean, isEmptyTrash?: boolean, isImport?: boolean }>({ open: false });
+    const pendingImportContent = React.useRef<string | null>(null);
     const [pinModal, setPinModal] = useState<{ open: boolean, mode: 'unlock'|'set'|'set-master', noteId?: string }>({ open: false, mode: 'unlock' });
     const [masterPin, setMasterPin] = useState<string | null>(localStorage.getItem('vitreon_master_pin'));
     const [isBiometricsEnabled, setIsBiometricsEnabled] = useState<boolean>(localStorage.getItem('vitreon_biometrics') === 'true');
@@ -136,7 +137,22 @@ export default function App() {
         }
         const toSave = { ...updatedNote, title: titleToSave, updatedAt: Date.now() };
         await saveNote(toSave);
-        setNotes(await getNotes());
+
+        // Update local state directly without re-decrypting all notes from DB.
+        // This changes O(n decryptions) → O(1) per save regardless of note count.
+        setNotes(prev => {
+            const exists = prev.some(n => n.id === toSave.id);
+            const updated = exists
+                ? prev.map(n => n.id === toSave.id ? toSave : n)
+                : [toSave, ...prev];
+            // Re-apply sort: manual order desc, then updatedAt desc
+            return [...updated].sort((a, b) => {
+                const orderA = a.order ?? 0;
+                const orderB = b.order ?? 0;
+                if (orderA !== orderB) return orderB - orderA;
+                return b.updatedAt - a.updatedAt;
+            });
+        });
         
         if (closeEditor) {
             setCurrentNote(null);
@@ -158,29 +174,41 @@ export default function App() {
     };
 
     const confirmDelete = async () => {
-        if (confirmModal.isEmptyTrash) {
-            const trashedNotes = notes.filter(n => !!n.deletedAt);
-            for (const n of trashedNotes) {
-                await deleteNote(n.id);
+        if (confirmModal.isImport && pendingImportContent.current) {
+            const content = pendingImportContent.current;
+            pendingImportContent.current = null;
+            setConfirmModal({ open: false });
+            try {
+                ensureCategoriesFromJson(content);
+                const count = await importDataFromJSON(content);
+                setNotes(await getNotes());
+                showToast(t('importedNotes').replace('{count}', String(count)));
+            } catch { showToast(t('importFailed')); }
+            return;
+        } else if (confirmModal.isEmptyTrash) {
+            const trashedIds = new Set<string>(notes.filter(n => !!n.deletedAt).map(n => n.id));
+            for (const id of trashedIds) {
+                await deleteNote(id);
             }
+            setNotes(prev => prev.filter(n => !trashedIds.has(n.id)));
             showToast(t('noteDeleted'));
         } else if (confirmModal.noteId) {
             if (confirmModal.isPermanent) {
                 await deleteNote(confirmModal.noteId);
+                setNotes(prev => prev.filter(n => n.id !== confirmModal.noteId));
                 showToast(t('noteDeleted'));
             } else {
                 const note = notes.find(n => n.id === confirmModal.noteId);
                 if (note) {
                     const updated = { ...note, deletedAt: Date.now(), isPinned: false };
                     await saveNote(updated);
+                    setNotes(prev => prev.map(n => n.id === updated.id ? updated : n));
                     showToast(t('movedToTrash'));
                 }
             }
         } else {
             return;
         }
-        
-        setNotes(await getNotes());
         if (currentNote?.id === confirmModal.noteId) { 
             setCurrentNote(null); 
             if (view !== 'home') window.history.back();
@@ -188,6 +216,7 @@ export default function App() {
         }
         setConfirmModal({ open: false });
     };
+
 
     const handleRestoreNote = async (note: Note) => {
         const updated = { ...note, deletedAt: undefined };
@@ -206,6 +235,51 @@ export default function App() {
         await handleSaveNote(updated);
         showToast(updated.isPinned ? t('pinnedToast') : t('unpinnedToast'));
     };
+
+    const handleBulkAction = async (
+        ids: string[],
+        action: 'pin' | 'unpin' | 'archive' | 'delete' | 'changeCategory' | 'addTags',
+        payload?: string | string[]
+    ) => {
+        const targetNotes = notes.filter(n => ids.includes(n.id));
+        if (!targetNotes.length) return;
+
+        if (action === 'delete') {
+            for (const note of targetNotes) {
+                const updated = { ...note, deletedAt: Date.now(), isPinned: false };
+                await saveNote(updated);
+            }
+            setNotes(prev => prev.map(n => ids.includes(n.id) ? { ...n, deletedAt: Date.now(), isPinned: false } : n));
+            showToast(t('bulkDeleted').replace('{count}', String(ids.length)));
+        } else if (action === 'pin') {
+            for (const note of targetNotes) await saveNote({ ...note, isPinned: true, updatedAt: Date.now() });
+            setNotes(prev => prev.map(n => ids.includes(n.id) ? { ...n, isPinned: true } : n));
+            showToast(t('bulkPinned').replace('{count}', String(ids.length)));
+        } else if (action === 'unpin') {
+            for (const note of targetNotes) await saveNote({ ...note, isPinned: false, updatedAt: Date.now() });
+            setNotes(prev => prev.map(n => ids.includes(n.id) ? { ...n, isPinned: false } : n));
+            showToast(t('bulkUnpinned').replace('{count}', String(ids.length)));
+        } else if (action === 'archive') {
+            for (const note of targetNotes) await saveNote({ ...note, isArchived: true, isPinned: false, updatedAt: Date.now() });
+            setNotes(prev => prev.map(n => ids.includes(n.id) ? { ...n, isArchived: true, isPinned: false } : n));
+            showToast(t('bulkArchived').replace('{count}', String(ids.length)));
+        } else if (action === 'changeCategory' && typeof payload === 'string') {
+            for (const note of targetNotes) await saveNote({ ...note, category: payload, updatedAt: Date.now() });
+            setNotes(prev => prev.map(n => ids.includes(n.id) ? { ...n, category: payload as string } : n));
+            showToast(t('bulkCategoryUpdated').replace('{count}', String(ids.length)));
+        } else if (action === 'addTags' && Array.isArray(payload)) {
+            for (const note of targetNotes) {
+                const merged = Array.from(new Set([...note.tags, ...payload as string[]]));
+                await saveNote({ ...note, tags: merged, updatedAt: Date.now() });
+            }
+            setNotes(prev => prev.map(n => {
+                if (!ids.includes(n.id)) return n;
+                return { ...n, tags: Array.from(new Set([...n.tags, ...(payload as string[])])) };
+            }));
+            showToast(t('bulkTagsUpdated'));
+        }
+    };
+
 
     // Locking Logic
     const initiateLock = (note: Note) => {
@@ -285,6 +359,47 @@ export default function App() {
         }
     };
 
+    /** Reads a JSON backup string and auto-creates any categories that don't exist yet. */
+    const ensureCategoriesFromJson = (jsonString: string) => {
+        try {
+            const rawData = JSON.parse(jsonString);
+            // If the backup has an explicit categories list, use it for rich metadata
+            const categoriesFromBackup: Category[] = Array.isArray(rawData.categories) ? rawData.categories : [];
+            const notesArray: any[] = Array.isArray(rawData.notes)
+                ? rawData.notes
+                : Array.isArray(rawData) ? rawData : [];
+
+            const existingIds = new Set(categories.map(c => c.id));
+            const newCategories: Category[] = [];
+            const cycleColors = ['slate', 'indigo', 'violet', 'teal', 'orange', 'pink', 'cyan', 'lime'];
+            let colorIdx = 0;
+
+            for (const note of notesArray) {
+                const catId: string | undefined = note.category;
+                if (!catId || existingIds.has(catId)) continue;
+                if (newCategories.some(c => c.id === catId)) continue;
+
+                // Use the backup category definition if available, otherwise generate a default
+                const fromBackup = categoriesFromBackup.find(c => c.id === catId);
+                newCategories.push(fromBackup ?? {
+                    id: catId,
+                    name: catId.charAt(0).toUpperCase() + catId.slice(1).replace(/[-_]/g, ' '),
+                    color: cycleColors[colorIdx++ % cycleColors.length],
+                    icon: 'folder'
+                });
+                existingIds.add(catId);
+            }
+
+            if (newCategories.length > 0) {
+                const updated = [...categories, ...newCategories];
+                setCategories(updated);
+                localStorage.setItem('vitreon_categories', JSON.stringify(updated));
+            }
+        } catch {
+            // Malformed JSON — importDataFromJSON will surface the real error
+        }
+    };
+
     const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -304,14 +419,12 @@ export default function App() {
                             createdAt: Date.now(), updatedAt: Date.now()
                         };
                         await saveNote(newNote);
-                        setNotes(await getNotes());
+                        setNotes(prev => [newNote, ...prev]);
                         showToast(t('importedMd'));
                     } else {
-                        if (confirm(t('confirmImport'))) {
-                            const count = await importDataFromJSON(content);
-                            setNotes(await getNotes());
-                            showToast(t('importedNotes').replace('{count}', String(count)));
-                        }
+                        // Show integrated confirm modal instead of native browser confirm()
+                        pendingImportContent.current = content;
+                        setConfirmModal({ open: true, isImport: true });
                     }
                 } catch { showToast(t('importFailed')); }
             }
@@ -319,6 +432,7 @@ export default function App() {
         };
         reader.readAsText(file);
     };
+
 
     const handleExportMarkdown = async () => {
         const notesToExport = notes.filter(n => !n.isArchived);
@@ -343,6 +457,7 @@ export default function App() {
         showToast(t('exportedFiles').replace('{count}', String(notesToExport.length)));
     };
 
+
     const handleAddCategory = (cat: Category) => {
         let updated;
         if (categories.some(c => c.id === cat.id)) {
@@ -354,6 +469,7 @@ export default function App() {
         localStorage.setItem('vitreon_categories', JSON.stringify(updated));
         showToast(updated.length === categories.length ? t('saved' as any) || t('categoryAdded') : t('categoryAdded'));
     };
+
 
     const handleExportGDrive = async () => {
         setIsLoading(true);
@@ -393,6 +509,7 @@ export default function App() {
         try {
             const jsonContent = await downloadFromGoogleDrive(fileId);
             if (jsonContent) {
+                ensureCategoriesFromJson(jsonContent);
                 const count = await importDataFromJSON(jsonContent);
                 showToast(t('imported' as any).replace('{count}', String(count)));
                 const updatedNotes = await getNotes();
@@ -491,6 +608,7 @@ export default function App() {
                             onPinNote={handlePinNote}
                             onDeleteNote={handleDeleteNote}
                             onUpdateNote={handleSaveNote}
+                            onBulkAction={handleBulkAction}
                             onReorderNotes={async (reordered) => {
                                 // 1. Update local state immediately for snappy UI
                                 const total = reordered.length;
@@ -590,12 +708,13 @@ export default function App() {
             <PinModal isOpen={pinModal.open} onClose={() => setPinModal({...pinModal, open: false})} isSettingPin={pinModal.mode === 'set' || pinModal.mode === 'set-master'} onUnlock={handlePinResult} />
             <ConfirmModal 
                 isOpen={confirmModal.open} 
-                title={confirmModal.isPermanent ? t('permanentDelete') : t('moveToTrash')} 
-                message={confirmModal.isPermanent ? t('deleteMessage') : t('trashMessage')} 
+                title={confirmModal.isImport ? t('restoreNotes') : confirmModal.isPermanent ? t('permanentDelete') : t('moveToTrash')} 
+                message={confirmModal.isImport ? t('confirmImport') : confirmModal.isPermanent ? t('deleteMessage') : t('trashMessage')} 
                 onConfirm={confirmDelete} 
-                onCancel={() => setConfirmModal({ open: false })}
-                confirmText={confirmModal.isPermanent ? t('delete') : t('confirm')}
+                onCancel={() => { pendingImportContent.current = null; setConfirmModal({ open: false }); }}
+                confirmText={confirmModal.isImport ? t('confirm') : confirmModal.isPermanent ? t('delete') : t('confirm')}
                 cancelText={t('cancel')}
+                type={confirmModal.isImport ? 'info' : 'danger'}
             />
             <input type="file" id="md-import" className="hidden" accept=".md,.json" onChange={handleImport} />
             <GDPRModal 

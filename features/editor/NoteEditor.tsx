@@ -5,6 +5,71 @@ import { VoiceNoteModal } from '../../components/modals/VoiceNoteModal';
 import { RichText } from '../../components/ui/RichText';
 import { useI18n } from '../../services/i18n';
 
+// --- Sub-component: renders an image/drawing attachment with broken-image detection ---
+interface BrokenImageWrapperProps {
+    att: { id: string; type: string; data: string };
+    onRemove: () => void;
+    isViewMode: boolean;
+}
+
+const BrokenImageWrapper: React.FC<BrokenImageWrapperProps> = ({ att, onRemove, isViewMode }) => {
+    const [isBroken, setIsBroken] = useState(false);
+
+    // If data is clearly not a valid URL/base64, mark broken immediately
+    useEffect(() => {
+        if (!att.data || att.data.trim() === '' || att.data === '***') {
+            setIsBroken(true);
+        }
+    }, [att.data]);
+
+    if (isBroken) {
+        return (
+            <div className="flex items-center gap-4 p-5 bg-red-500/5 dark:bg-red-500/10 border border-red-500/20 rounded-[32px]">
+                <div className="w-12 h-12 rounded-2xl bg-red-500/10 flex items-center justify-center shrink-0">
+                    <span className="material-symbols-rounded text-2xl text-red-400">broken_image</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-extrabold text-red-400 uppercase tracking-widest mb-0.5">
+                        {att.type === 'drawing' ? 'Dibujo dañado' : 'Imagen dañada'}
+                    </p>
+                    <p className="text-[10px] text-slate-400 truncate">
+                        No se pudo cargar — importación fallida o datos corruptos
+                    </p>
+                </div>
+                <button
+                    onClick={onRemove}
+                    className="w-10 h-10 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all shrink-0 active:scale-90"
+                    title="Eliminar adjunto dañado"
+                >
+                    <span className="material-symbols-rounded text-lg">delete</span>
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className={att.type === 'drawing' ? 'bg-white p-4' : 'relative'}>
+            <img
+                src={att.data}
+                alt="Attachment"
+                className={`w-full h-auto ${att.type === 'image' ? 'object-cover' : 'object-contain'} pointer-events-none`}
+                onError={() => setIsBroken(true)}
+            />
+            {/* Always-visible delete overlay in View Mode for quick cleanup */}
+            {isViewMode && (
+                <button
+                    onClick={onRemove}
+                    className="absolute top-3 right-3 w-9 h-9 rounded-full bg-black/40 dark:bg-black/60 text-white backdrop-blur-md flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity hover:bg-red-500 z-10"
+                    title="Eliminar imagen"
+                >
+                    <span className="material-symbols-rounded text-base">delete</span>
+                </button>
+            )}
+        </div>
+    );
+};
+
+
 interface NoteEditorProps {
     initialNote: Note;
     categories: Category[];
@@ -412,7 +477,15 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                     <div className="mt-8 space-y-6">
                         {(note.attachments?.length || 0) > 0 && (
                             <div className="grid grid-cols-1 gap-4 stagger-3">
-                                {note.attachments.map((att, idx) => (
+                                {note.attachments.map((att, idx) => {
+                                    const removeAtt = () => {
+                                        const updatedNote = { ...note, attachments: note.attachments.filter((_, i) => i !== idx), updatedAt: Date.now() };
+                                        setNote(updatedNote);
+                                        if (isViewMode) {
+                                            onSave(updatedNote, false);
+                                        }
+                                    };
+                                    return (
                                     <div 
                                         key={att.id}
                                         draggable={!isViewMode}
@@ -448,16 +521,28 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                                                         <div className="w-full h-full bg-indigo-500 rounded-full"></div>
                                                     </div>
                                                 </div>
+                                                {/* Always-visible delete for voice in view mode */}
+                                                {isViewMode && (
+                                                    <button
+                                                        onClick={removeAtt}
+                                                        className="w-9 h-9 rounded-full bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all shrink-0"
+                                                        title="Eliminar adjunto"
+                                                    >
+                                                        <span className="material-symbols-rounded text-lg">delete</span>
+                                                    </button>
+                                                )}
                                             </div>
                                         ) : (
-                                            <div className={att.type === 'drawing' ? 'bg-white p-4' : ''}>
-                                                <img src={att.data} alt="Attachment" className={`w-full h-auto ${att.type === 'image' ? 'object-cover' : 'object-contain'} pointer-events-none`} />
-                                            </div>
+                                            <BrokenImageWrapper
+                                                att={att}
+                                                onRemove={removeAtt}
+                                                isViewMode={isViewMode}
+                                            />
                                         )}
                                         
                                         {!isViewMode && (
                                             <>
-                                                <button onClick={() => setNote({ ...note, attachments: note.attachments.filter((_, i) => i !== idx) })} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-md hover:bg-red-500 z-10">
+                                                <button onClick={removeAtt} className="absolute top-4 right-4 w-10 h-10 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-md hover:bg-red-500 z-10">
                                                     <span className="material-symbols-rounded text-lg">delete</span>
                                                 </button>
                                                 <div className="absolute top-4 left-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
@@ -468,10 +553,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                                             </>
                                         )}
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )}
                     </div>
+
 
                     {/* Tags */}
                     {(note.tags.length > 0 || !isViewMode) && (

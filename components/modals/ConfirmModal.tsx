@@ -26,7 +26,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="glass-card w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in zoom-in-95 duration-200">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center mb-4 ${type === 'danger' ? 'bg-red-500/20 text-red-500' : 'bg-indigo-500/20 text-indigo-500'}`}>
-                    <span className="material-symbols-rounded text-2xl">{type === 'danger' ? 'delete_forever' : 'help'}</span>
+                    <span className="material-symbols-rounded text-2xl">{type === 'danger' ? 'delete_forever' : 'cloud_upload'}</span>
                 </div>
                 <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-2">{title}</h3>
                 <p className="text-sm text-slate-600 dark:text-slate-400 mb-6 leading-relaxed">{message}</p>
