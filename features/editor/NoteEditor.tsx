@@ -372,32 +372,43 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                 {/* Category Selector */}
                 <div className="mb-4 relative">
                     <button 
-                        disabled={isViewMode}
                         onClick={() => setShowCategoryMenu(!showCategoryMenu)}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full transition-all text-[10px] font-bold uppercase tracking-widest border ${isViewMode ? 'bg-slate-500/10 text-slate-500 border-slate-500/20' : (showCategoryMenu ? 'bg-indigo-500 text-white border-indigo-500' : 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20 hover:bg-indigo-500/20')}`}
+                        className={`flex items-center gap-3 px-4 py-2 rounded-2xl transition-all text-[11px] font-bold uppercase tracking-widest border shadow-sm ${showCategoryMenu ? 'bg-indigo-500 text-white border-indigo-500 shadow-indigo-500/30' : 'bg-white dark:bg-white/5 text-slate-600 dark:text-slate-300 border-black/5 dark:border-white/10 hover:border-indigo-500/50'}`}
                     >
-                        <span className="material-symbols-rounded text-sm">{currentCat?.icon || 'folder'}</span>
+                        <div className={`w-6 h-6 rounded-lg flex items-center justify-center bg-${currentCat?.color || 'slate'}-500/10 text-${currentCat?.color || 'slate'}-500`}>
+                            <span className="material-symbols-rounded text-base">{currentCat?.icon || 'folder'}</span>
+                        </div>
                         {getCategoryName(currentCat?.id, currentCat?.name) || t('general')}
-                        {!isViewMode && <span className="material-symbols-rounded text-sm transition-transform duration-300" style={{ transform: showCategoryMenu ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</span>}
+                        <span className="material-symbols-rounded text-sm transition-transform duration-300" style={{ transform: showCategoryMenu ? 'rotate(180deg)' : 'rotate(0deg)' }}>expand_more</span>
                     </button>
                     
-                    {!isViewMode && showCategoryMenu && (
-                        <div className="absolute top-full left-0 mt-2 w-56 glass-panel rounded-3xl shadow-2xl py-3 z-[60] animate-in fade-in zoom-in-95 bg-white dark:bg-[#1e293b] border-white/10">
-                            {categories.map(c => (
-                                <button 
-                                    key={c.id}
-                                    onClick={() => { setNote({ ...note, category: c.id }); setShowCategoryMenu(false); }}
-                                    className={`w-full flex items-center justify-between px-5 py-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors group ${note.category === c.id ? 'bg-indigo-500/10' : ''}`}
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center bg-${c.color}-500/10 text-${c.color}-500`}>
-                                            <span className="material-symbols-rounded text-lg">{c.icon}</span>
+                    {showCategoryMenu && (
+                        <div className="absolute top-full left-0 mt-3 w-64 glass-panel rounded-[32px] shadow-2xl py-4 z-[60] animate-in fade-in zoom-in-95 bg-white dark:bg-[#1e293b] border-white/10 p-2">
+                            <div className="px-3 pb-2 mb-2 border-b border-black/5 dark:border-white/5">
+                                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{t('changeCategory')}</span>
+                            </div>
+                            <div className="grid grid-cols-1 gap-1 max-h-[40vh] overflow-y-auto no-scrollbar">
+                                {categories.map(c => (
+                                    <button 
+                                        key={c.id}
+                                        onClick={() => { 
+                                            const updatedNote = { ...note, category: c.id, updatedAt: Date.now() };
+                                            setNote(updatedNote); 
+                                            setShowCategoryMenu(false); 
+                                            if (isViewMode) onSave(updatedNote, false);
+                                        }}
+                                        className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl transition-all group ${note.category === c.id ? `bg-${c.color}-500/10 text-${c.color}-600` : 'hover:bg-black/5 dark:hover:bg-white/5 text-slate-600 dark:text-slate-400'}`}
+                                    >
+                                        <div className="flex items-center gap-3 font-bold">
+                                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center bg-${c.color}-500 shadow-sm text-white`}>
+                                                <span className="material-symbols-rounded text-lg">{c.icon}</span>
+                                            </div>
+                                            <span className="text-[11px] uppercase tracking-widest">{getCategoryName(c.id, c.name)}</span>
                                         </div>
-                                        <span className={`text-[11px] font-bold uppercase tracking-widest ${note.category === c.id ? 'text-indigo-500' : 'text-slate-600 dark:text-slate-300'}`}>{getCategoryName(c.id, c.name)}</span>
-                                    </div>
-                                    {note.category === c.id && <span className="material-symbols-rounded text-indigo-500 text-sm">check_circle</span>}
-                                </button>
-                            ))}
+                                        {note.category === c.id && <span className={`material-symbols-rounded text-${c.color}-500 text-lg`}>check_circle</span>}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>

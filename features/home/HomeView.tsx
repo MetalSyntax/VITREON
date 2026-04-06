@@ -72,17 +72,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
             return b.updatedAt - a.updatedAt;
         });
 
-        if (showFavorites) {
-            filtered = filtered.filter(n => n.isPinned && !n.deletedAt);
-        } else if (showArchived) {
-            filtered = filtered.filter(n => n.isArchived && !n.deletedAt);
-        } else if (showTrash) {
+        if (showTrash) {
             filtered = filtered.filter(n => !!n.deletedAt);
         } else {
-            filtered = filtered.filter(n => !n.isArchived && !n.deletedAt);
-            if (selectedCategory) {
-                filtered = filtered.filter(n => n.category === selectedCategory);
+            filtered = filtered.filter(n => !n.deletedAt);
+            if (showFavorites) {
+                filtered = filtered.filter(n => n.isPinned && !n.isArchived);
+            } else if (showArchived) {
+                filtered = filtered.filter(n => n.isArchived);
+            } else if (!selectedCategory) {
+                filtered = filtered.filter(n => !n.isArchived);
             }
+        }
+
+        if (selectedCategory) {
+            filtered = filtered.filter(n => n.category === selectedCategory);
         }
         
         if (searchQuery) {
@@ -100,6 +104,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
     // --- Drag and Drop with FormKit ---
     const [parent, mainList, setMainList] = useDragAndDrop<HTMLDivElement, Note>(mainFiltered, {
+        dragHandle: ".drag-handle",
         disabled: selectMode || !!searchQuery || sortBy === 'alpha' || showFavorites || showArchived || showTrash,
         onDragend: (data) => {
             onReorderNotes(data.values);
@@ -191,10 +196,29 @@ export const HomeView: React.FC<HomeViewProps> = ({
         }
     };
 
+    const handleLongPress = (id: string) => {
+        if (!selectMode) {
+            setSelectMode(true);
+            setSelectedIds(new Set([id]));
+            setBulkPanel('main');
+        }
+    };
+
     const allSelected = mainList.length > 0 && mainList.every(n => selectedIds.has(n.id));
 
+    const handleBackgroundClick = (e: React.MouseEvent) => {
+        // Only exit if clicking the background itself (not a child card) 
+        // and if no notes are currently selected
+        if (e.target === e.currentTarget && selectMode && selectedIds.size === 0) {
+            exitSelectMode();
+        }
+    };
+
     return (
-        <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-32 pt-2 transition-colors animate-in fade-in duration-500">
+        <div 
+            onClick={handleBackgroundClick}
+            className="flex flex-col h-full overflow-y-auto no-scrollbar overscroll-contain touch-pan-y pb-40 pt-2 transition-colors animate-in fade-in duration-500"
+        >
 
             {/* ── Bulk Selection Toolbar ── */}
             {selectMode && (
@@ -305,83 +329,86 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
             )}
 
-            {/* ── Integrated Search bar ── */}
-            <div className="px-6 mb-8 stagger-1">
-                <div className="relative group flex items-center glass-card bg-white dark:bg-white/5 rounded-[28px] shadow-xl transition-all focus-within:ring-2 focus-within:ring-indigo-500/30 overflow-hidden">
-                    <span className="pl-5 material-symbols-rounded text-slate-400 group-focus-within:text-indigo-500 transition-colors">search</span>
-                    
-                    <input
-                        type="text" 
-                        placeholder={t('search')}
-                        value={searchQuery} 
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="flex-1 min-w-0 bg-transparent border-none py-4 px-3 text-slate-800 dark:text-white placeholder-slate-400 outline-none"
-                    />
+            {/* ── Sticky Header (Search & Categories) ── */}
+            <div className="sticky top-0 z-30 bg-[var(--bg-app)] transition-colors pt-2 pb-1">
+                {/* ── Integrated Search bar ── */}
+                <div className="px-6 mb-4 stagger-1">
+                    <div className="relative group flex items-center glass-card bg-white dark:bg-white/5 rounded-[28px] shadow-xl transition-all focus-within:ring-2 focus-within:ring-indigo-500/30 overflow-hidden">
+                        <span className="pl-5 material-symbols-rounded text-slate-400 group-focus-within:text-indigo-500 transition-colors">search</span>
+                        
+                        <input
+                            type="text" 
+                            placeholder={t('search')}
+                            value={searchQuery} 
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="flex-1 min-w-0 bg-transparent border-none py-4 px-3 text-slate-800 dark:text-white placeholder-slate-400 outline-none"
+                        />
 
-                    {/* Integrated Action Buttons */}
-                    <div className={`flex items-center gap-1 shrink-0 pr-1 transition-all duration-300 ${searchQuery ? 'opacity-0 pointer-events-none translate-x-10' : 'opacity-100'}`}>
+                        {/* Integrated Action Buttons */}
+                        <div className={`flex items-center gap-1 shrink-0 pr-1 transition-all duration-300 ${searchQuery ? 'opacity-0 pointer-events-none translate-x-10' : 'opacity-100'}`}>
+                            <button 
+                                onClick={toggleSort}
+                                className="w-10 h-10 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-all active:scale-90 shrink-0"
+                                title={sortBy === 'date' ? t('date') : t('alphabetical')}
+                            >
+                                <span className="material-symbols-rounded text-xl">{sortBy === 'date' ? 'calendar_today' : 'sort_by_alpha'}</span>
+                            </button>
+                            <button 
+                                onClick={nextLayout}
+                                className="w-10 h-10 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-all active:scale-90 shrink-0"
+                                title={t(layoutMode as any)}
+                            >
+                                <span className="material-symbols-rounded text-xl">{layoutMode === 'grid' ? 'grid_view' : layoutMode === 'list' ? 'view_list' : 'view_agenda'}</span>
+                            </button>
+                            <button
+                                onClick={selectMode ? exitSelectMode : enterSelectMode}
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 shrink-0
+                                    ${selectMode
+                                        ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
+                                        : 'hover:bg-black/5 dark:hover:bg-white/5 text-slate-500 hover:text-indigo-500'}`}
+                                title={t('selectNotes')}
+                            >
+                                <span className="material-symbols-rounded text-xl" style={{ fontVariationSettings: selectMode ? "'FILL' 1" : "'FILL' 0" }}>
+                                    checklist
+                                </span>
+                            </button>
+                        </div>
+
                         <button 
-                            onClick={toggleSort}
-                            className="w-10 h-10 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-all active:scale-90 shrink-0"
-                            title={sortBy === 'date' ? t('date') : t('alphabetical')}
+                            onClick={startVoiceSearch}
+                            className={`pr-4 material-symbols-rounded text-slate-400 hover:text-indigo-500 cursor-pointer transition-colors shrink-0 ${isListening ? 'text-red-500 animate-pulse' : ''}`}
                         >
-                            <span className="material-symbols-rounded text-xl">{sortBy === 'date' ? 'calendar_today' : 'sort_by_alpha'}</span>
-                        </button>
-                        <button 
-                            onClick={nextLayout}
-                            className="w-10 h-10 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-all active:scale-90 shrink-0"
-                            title={t(layoutMode as any)}
-                        >
-                            <span className="material-symbols-rounded text-xl">{layoutMode === 'grid' ? 'grid_view' : layoutMode === 'list' ? 'view_list' : 'view_agenda'}</span>
-                        </button>
-                        <button
-                            onClick={selectMode ? exitSelectMode : enterSelectMode}
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 shrink-0
-                                ${selectMode
-                                    ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
-                                    : 'hover:bg-black/5 dark:hover:bg-white/5 text-slate-500 hover:text-indigo-500'}`}
-                            title={t('selectNotes')}
-                        >
-                            <span className="material-symbols-rounded text-xl" style={{ fontVariationSettings: selectMode ? "'FILL' 1" : "'FILL' 0" }}>
-                                checklist
-                            </span>
+                            mic
                         </button>
                     </div>
-
-                    <button 
-                        onClick={startVoiceSearch}
-                        className={`pr-4 material-symbols-rounded text-slate-400 hover:text-indigo-500 cursor-pointer transition-colors shrink-0 ${isListening ? 'text-red-500 animate-pulse' : ''}`}
-                    >
-                        mic
-                    </button>
                 </div>
-            </div>
 
-            {/* ── Category Filter Bar ── */}
-            <div className="px-6 mb-8 stagger-2 overflow-x-auto no-scrollbar flex items-center gap-3">
-                <button 
-                    onClick={() => onSelectCategory(null)}
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all shrink-0 border-2 font-bold text-xs uppercase tracking-widest
-                        ${!selectedCategory 
-                            ? 'bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/30' 
-                            : 'glass-card bg-white dark:bg-white/5 border-transparent text-slate-500 hover:border-indigo-500/30'}`}
-                >
-                    <span className="material-symbols-rounded text-[18px]">apps</span>
-                    {t('all' as any)}
-                </button>
-                {categories.map(cat => (
+                {/* ── Category Filter Bar ── */}
+                <div className="px-6 mb-4 stagger-2 overflow-x-auto no-scrollbar flex items-center gap-3">
                     <button 
-                        key={cat.id}
-                        onClick={() => onSelectCategory(cat.id)}
+                        onClick={() => onSelectCategory(null)}
                         className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all shrink-0 border-2 font-bold text-xs uppercase tracking-widest
-                            ${selectedCategory === cat.id 
-                                ? `bg-${cat.color}-500 border-${cat.color}-500 text-white shadow-lg shadow-${cat.color}-500/30` 
-                                : `glass-card bg-white dark:bg-white/5 border-transparent text-slate-500 hover:border-${cat.color}-500/30`}`}
+                            ${!selectedCategory 
+                                ? 'bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/30' 
+                                : 'glass-card bg-white dark:bg-white/5 border-transparent text-slate-500 hover:border-indigo-500/30'}`}
                     >
-                        <span className="material-symbols-rounded text-[18px]">{cat.icon}</span>
-                        {getCategoryName(cat.id, cat.name)}
+                        <span className="material-symbols-rounded text-[18px]">apps</span>
+                        {t('all' as any)}
                     </button>
-                ))}
+                    {categories.map(cat => (
+                        <button 
+                            key={cat.id}
+                            onClick={() => onSelectCategory(cat.id)}
+                            className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all shrink-0 border-2 font-bold text-xs uppercase tracking-widest
+                                ${selectedCategory === cat.id 
+                                    ? `bg-${cat.color}-500 border-${cat.color}-500 text-white shadow-lg shadow-${cat.color}-500/30` 
+                                    : `glass-card bg-white dark:bg-white/5 border-transparent text-slate-500 hover:border-${cat.color}-500/30`}`}
+                        >
+                            <span className="material-symbols-rounded text-[18px]">{cat.icon}</span>
+                            {getCategoryName(cat.id, cat.name)}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {!showFavorites && !showArchived && pinned.length > 0 && (
@@ -406,7 +433,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                     </div>
                                 )}
                                 <div className={selectMode && selectedIds.has(note.id) ? 'opacity-80 ring-2 ring-indigo-500 rounded-[32px]' : ''}>
-                                    <NoteCard note={note} category={categories.find(c => c.id === note.category)} onClick={() => !selectMode && onNoteClick(note)} onPin={() => onPinNote(note)} onUpdate={onUpdateNote} layout="carousel" />
+                                    <NoteCard note={note} category={categories.find(c => c.id === note.category)} allCategories={categories} onClick={() => !selectMode && onNoteClick(note)} onLongPress={() => handleLongPress(note.id)} onPin={() => onPinNote(note)} onUpdate={onUpdateNote} layout="carousel" />
                                 </div>
                             </div>
                         ))}
@@ -466,7 +493,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         >
                             <NoteCard 
                                 note={note} category={categories.find(c => c.id === note.category)} 
-                                onClick={() => !selectMode && handleNoteClick(note)} onPin={() => onPinNote(note)} 
+                                allCategories={categories}
+                                onClick={() => !selectMode && handleNoteClick(note)} 
+                                onLongPress={() => handleLongPress(note.id)}
+                                onPin={() => onPinNote(note)} 
                                 layout={layoutMode} 
                                 onRestore={showTrash ? () => onRestoreNote(note) : undefined}
                                 onDelete={showTrash ? () => onDeleteNote(note.id) : undefined}

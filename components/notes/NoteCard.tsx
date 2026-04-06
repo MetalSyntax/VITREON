@@ -7,6 +7,7 @@ interface NoteCardProps {
     note: Note;
     category?: Category;
     onClick: () => void;
+    onLongPress?: () => void;
     onPin?: () => void;
     onRestore?: () => void;
     onDelete?: () => void;
@@ -14,17 +15,51 @@ interface NoteCardProps {
     layout?: 'grid' | 'carousel' | 'list' | 'card';
 }
 
-export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onPin, onRestore, onDelete, onUpdate, layout = 'grid' }) => {
+export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onLongPress, onPin, onRestore, onDelete, onUpdate, layout = 'grid' }) => {
     const { t, getCategoryName } = useI18n();
     const isCarousel = layout === 'carousel';
     const isList = layout === 'list';
     const isCard = layout === 'card';
 
+    // --- Long Press Logic ---
+    const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+    const isLongPressActive = React.useRef(false);
+
+    const startPress = (e: React.MouseEvent | React.TouchEvent) => {
+        isLongPressActive.current = false;
+        timerRef.current = setTimeout(() => {
+            isLongPressActive.current = true;
+            if (onLongPress) {
+                onLongPress();
+            }
+        }, 600);
+    };
+
+    const cancelPress = () => {
+        if (timerRef.current) {
+            clearTimeout(timerRef.current);
+            timerRef.current = null;
+        }
+    };
+
     return (
         <div 
+            onMouseDown={startPress}
+            onMouseUp={cancelPress}
+            onMouseLeave={cancelPress}
+            onTouchStart={startPress}
+            onTouchEnd={cancelPress}
+            onContextMenu={(e) => {
+                if (isLongPressActive.current) e.preventDefault();
+            }}
             onClick={(e) => {
+                cancelPress();
+                if (isLongPressActive.current) {
+                    isLongPressActive.current = false;
+                    return;
+                }
                 const selection = window.getSelection()?.toString();
-                if (selection) return; // Don't navigate if text is selected
+                if (selection) return; 
                 onClick();
             }}
             className={`glass-card rounded-[32px] cursor-default p-0 overflow-hidden relative group transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0
@@ -34,6 +69,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
             ${layout === 'grid' ? 'flex flex-col h-auto' : ''} border border-${category?.color || 'slate'}-500/20`}
         >
             <div className={`absolute inset-0 bg-${category?.color || 'slate'}-500/5 pointer-events-none mix-blend-multiply dark:mix-blend-screen`}></div>
+            
             {/* Quick Pin Toggle */}
             {onPin && !note.deletedAt && (
                 <button 
@@ -116,11 +152,24 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
                         <div>
                             <div className="flex justify-between items-start mb-1 flex-col-reverse">
                                 <h3 className="font-bold text-base text-slate-800 dark:text-white group-hover:text-indigo-500 transition-colors tracking-tight">{note.title}</h3>
-                                {!isCarousel && (
-                                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest shrink-0 ml-2">
-                                        {new Date(note.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric'})}
-                                    </span>
-                                )}
+                                <div className="flex items-center justify-between w-full">
+                                    {!isCarousel && (
+                                        <div className="flex items-center gap-2">
+                                            <span className="drag-handle material-symbols-rounded text-slate-400 dark:text-slate-500 text-lg cursor-grab active:cursor-grabbing hover:text-indigo-500 transition-colors shrink-0">
+                                                drag_indicator
+                                            </span>
+                                            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest shrink-0">
+                                                {new Date(note.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric'})}
+                                            </span>
+                                            {note.isArchived && (
+                                                <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                                                    <span className="material-symbols-rounded text-[11px]">archive</span>
+                                                    {t('archived')}
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div className={`text-[13px] text-slate-600 dark:text-slate-400 leading-relaxed font-medium ${isList ? 'line-clamp-1' : 'line-clamp-[16]'}`}>
                                 {note.isChecklist ? (
