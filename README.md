@@ -1,4 +1,4 @@
-# 🖋️ Vitreon Notes v1.1.0
+# 🖋️ Vitreon Notes v1.2.0
 
 **A Premium, Secure, and Elegant Markdown Note-Taking Experience**
 
@@ -10,98 +10,82 @@
 
 - **AES-GCM 256-bit Encryption:** Your notes are encrypted locally before ever hitting the database.
 - **PBKDF2 Key Derivation:** Secure master key generation with 100,000 iterations to resist brute-force attacks.
+- **Performance-First Decryption:** Optimized "Single Promise" key derivation ensures 1,000+ notes load in under 1 second.
 - **Privacy-First:** Secure "Locked Notes" feature with dedicated PIN protection.
-- **No Compromises:** Sensitive data is obfuscated even within the browser's internal database.
 
 ### 📝 Full Markdown Ecosystem
 
 - **Rich Renderer:** Support for Headers (`#`), Blockquotes (`>`), Lists (`-`), Inline Code (`` ` ``), and Horizontal Rules (`---`).
-- **Enhanced Format:** Support for **Bold**, _Italics_, and ++Underline++ (using standard markdown patterns).
+- **Enhanced Format:** Support for **Bold**, _Italics_, and ++Underline++ patterns.
 - **Reading First:** Optimized "Viewing Mode" toggle to read your notes without the clutter of the editor.
 
-### ☁️ Cloud Sync & Data Portability
+### 🍱 Integrated Control Center
 
-- **Google Drive Sync:** Effortless multi-device backup and restore via official Google API integration.
-- **.MD Power User:** Export your notes as standard `.md` files or import existing ones directly into your secure vault.
-- **Full Backups:** Comprehensive JSON export/import for complete data control.
+- **Unified Search Bar:** Redesigned search input that embeds Sort, Layout, and Select-Mode buttons for a cleaner mobile experience.
+- **Category Filter Bar:** Horizontal, scrollable filter bar with icons for instant collection switching.
+- **Advanced Bulk Actions:** Select multiple notes to change categories, pin, or delete in one go.
 
 ### 🎨 Premium Experience
 
-- **Glassmorphism UI:** A sleek, modern interface with dynamic blurs, smooth gradients, and micro-animations.
-- **Visual Organization:** Custom categories with unique icons and colors.
-- **Media Support:** Attach images (with drag-and-drop reordering), voice notes, and hand-drawn sketches.
-- **Smart Search:** Real-time voice search and category filtering for instant access.
+- **Pro Drag & Drop:** Powered by `@formkit/drag-and-drop` for fluid, touch-friendly note reordering.
+- **Expanded Icon Library:** Over 50 curated Material Symbols for visually stunning category management.
+- **Glassmorphism UI:** A sleek, modern interface with 24px (rounded-3xl) standard radii and Outfit typography.
+- **Minimalist Content:** "Untitled" and "Empty Content" placeholders removed to prioritize your actual data.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- **Frontend:** React, TypeScript, Tailwind CSS
+- **Frontend:** React 19, TypeScript, Tailwind CSS
 - **Database:** IndexedDB (Local-First Architecture)
 - **Security:** Web Crypto API (AES-GCM, PBKDF2)
-- **APIs:** Google Drive API (Google Identity Services)
-- **Design:** Custom Glassmorphic CSS System
+- **Testing:** Cypress (E2E/Design Audit), Jest (Performance Benchmarks)
+- **Interactions:** @formkit/drag-and-drop
 
 ---
 
 ## 🚀 Getting Started
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) (Latest LTS recommended)
 
 ### Installation
 
 1.  **Clone and install dependencies:**
 
     ```bash
-    npm install
+    pnpm install
     ```
 
-2.  **Configure Environment Variables:**
-    Create a `.env` file in the root directory (use `.env.example` as a template):
-
-    ```env
-    VITE_GOOGLE_DRIVE_CLIENT_ID=your_id
-    VITE_ENCRYPTION_SALT=secure_random_salt
-    VITE_ENCRYPTION_KEY=your_master_secret
-    ```
-
-3.  **Launch the development server:**
+2.  **Launch the development server:**
     ```bash
-    npm run dev
+    pnpm dev
     ```
 
----
+### 🧪 Testing
 
-## 🚀 Deployment
+Run the automated suites to ensure design and performance consistency:
 
-### Deploying to Vercel
-
-1.  **Push your code** to a GitHub, GitLab, or Bitbucket repository.
-2.  **Import the project** in the [Vercel Dashboard](https://vercel.com/new).
-3.  **Configure Environment Variables** in the Vercel project settings:
-    - `VITE_GOOGLE_DRIVE_CLIENT_ID`
-    - `VITE_ENCRYPTION_SALT`
-    - `VITE_ENCRYPTION_KEY`
-4.  **Deploy!** Vercel will automatically detect the Vite setup and build the project.
+```bash
+pnpm test          # Run Jest Performance Benchmarks
+pnpm cypress:run   # Run UI Consistency and Load stress tests
+```
 
 ---
-
-## 🔐 Security Disclaimer
-
-Vitreon Notes is a local-first application. Your encryption keys (derived from your `VITE_ENCRYPTION_SALT` and `VITE_ENCRYPTION_KEY`) are essential to decrypt your data. **If you lose these variables or change them, previously encrypted notes will be unrecoverable.** Always keep a secure backup of your environment configuration.
 
 ## 📊 Changelog
 
+### v1.2.0 (Current)
+
+- **Mobile UX Overhaul**: Integrated search bar controls and horizontal category filter for better narrow-screen usability.
+- **Pro Reordering**: Switched to `@formkit/drag-and-drop` for robust touch interactions.
+- **Performance Fix**: Resolved "thundering herd" decryption bottleneck (Promise caching).
+- **Testing Suite**: Implemented Cypress (Design System Audit) and Jest (Performance Benchmarks).
+- **Refined Aesthetics**: Standardized 24px border-radius and expanded icon library to 50+ options.
+
 ### v1.1.0
 
-- **Google Drive Integration Refactor**: Migrated from outdated `gapi` to native `fetch`. Resolves API key vulnerabilities and 400 Bad Request errors.
-- **Drive Backup History Modal**: Automatically creates daily backup strings (`vitreon_backup_YYYY-MM-DD.json`) instead of overwriting, supported by a new sleek modal for restoring specific backups.
-- **Google Keep Importer Integration**: `.json` data files exported from Google Keep are now instantly recognized and formatted upon internal import. Protects against duplicate notes via auto-UUID generation.
-- **Improved Authentication UX**: Automatically captures cached access tokens dynamically to speed up login logic while bypassing redundant consent screens.
-- **Elegant Event Flow System**: Eradicated all native web `alert()` boxes globally. The entire system now utilizes stylized, animated `Toasts`.
-- **Intelligent Text Selection**: Granular text selection isolation inside notes rendering engine - disabled across UI elements to prioritize slick navigation.
+- **Google Drive Integration Refactor**: Migrated from outdated `gapi` to native `fetch`.
+- **Drive Backup History Modal**: Daily backup history support.
+- **Google Keep Importer**: Native recognition of Keep JSON exports.
+- **Toast Notification System**: Replaced native alerts with animated toasts.
 
 ---
 

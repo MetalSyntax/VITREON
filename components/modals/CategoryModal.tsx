@@ -19,7 +19,14 @@ const ICONS = [
     'payments', 'medical_services', 'directions_car', 'celebration', 'palette', 
     'menu_book', 'pets', 'camera_alt', 'eco', 'savings', 'translate', 'code', 
     'smart_toy', 'sports_esports', 'theater_comedy', 'monitoring', 'history_edu', 
-    'construction', 'volunteer_activism', 'rocket_launch', 'terminal'
+    'construction', 'volunteer_activism', 'rocket_launch', 'terminal',
+    'vpn_key', 'shield', 'lock', 'search', 'notifications', 'settings',
+    'cloud', 'folder', 'attach_file', 'mail', 'inventory_2', 'archive',
+    'shopping_bag', 'storefront', 'coffee', 'local_bar', 'lunch_dining',
+    'self_improvement', 'directions_run', 'pool', 'sports_basketball',
+    'music_note', 'movie', 'tv', 'radio', 'headphones', 'videogame_asset',
+    'photo_camera', 'camera_roll', 'auto_stories', 'extension', 'map',
+    'explore', 'public', 'language', 'account_balance_wallet', 'receipt_long'
 ];
 
 export const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, onSave, initialCategory }) => {
@@ -89,11 +96,11 @@ export const CategoryModal: React.FC<CategoryModalProps> = ({ isOpen, onClose, o
 
                 <div className="mb-6">
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">{t('icon')}</label>
-                    <div className="grid grid-cols-5 gap-2">
+                    <div className="grid grid-cols-6 gap-2 max-h-48 overflow-y-auto pr-2 no-scrollbar">
                         {ICONS.map(i => (
                             <button 
                                 key={i} onClick={() => setIcon(i)}
-                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${icon === i ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shrink-0 ${icon === i ? 'bg-indigo-500 text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500'}`}
                             >
                                 <span className="material-symbols-rounded text-xl">{i}</span>
                             </button>

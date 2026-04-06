@@ -115,7 +115,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
                     <div className={`p-5 flex-1 flex flex-col justify-between overflow-hidden relative z-10`}>
                         <div>
                             <div className="flex justify-between items-start mb-1 flex-col-reverse">
-                                <h3 className="font-bold text-base text-slate-800 dark:text-white group-hover:text-indigo-500 transition-colors tracking-tight">{note.title || t('untitled')}</h3>
+                                <h3 className="font-bold text-base text-slate-800 dark:text-white group-hover:text-indigo-500 transition-colors tracking-tight">{note.title}</h3>
                                 {!isCarousel && (
                                     <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest shrink-0 ml-2">
                                         {new Date(note.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric'})}
@@ -143,7 +143,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
                                                     >
                                                         {isChecked && <span className="material-symbols-rounded text-white text-[10px] font-bold">check</span>}
                                                     </button>
-                                                    <span className={`text-[12px] truncate ${isChecked ? 'line-through opacity-50' : ''}`}>{text || t('taskItem')}</span>
+                                                    <span className={`text-[12px] truncate select-text cursor-text ${isChecked ? 'line-through opacity-50' : ''}`} onClick={(e) => e.stopPropagation()}>{text || t('taskItem')}</span>
                                                 </div>
                                             );
                                         })}
@@ -155,7 +155,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onP
                                     </div>
                                 ) : (
                                     <div className="select-text cursor-text" onClick={(e) => e.stopPropagation()}>
-                                        <RichText content={note.content || t('noContent')} className={isList ? "line-clamp-1" : "line-clamp-[16]"} />
+                                        <RichText content={note.content || ""} className={isList ? "line-clamp-1" : "line-clamp-[16]"} />
                                     </div>
                                 )}
                             </div>

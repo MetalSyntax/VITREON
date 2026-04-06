@@ -62,8 +62,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-32 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="p-6">
                     <div className="flex items-center justify-between mb-10">
-                        <button onClick={() => setActiveSection('main')} className="w-11 h-11 rounded-2xl glass-panel flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-indigo-500 transition-colors">
-                            <span className="material-symbols-rounded">chevron_left</span>
+                        <button onClick={() => setActiveSection('main')} className="w-11 h-11 rounded-3xl glass-card flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-indigo-500 transition-all">
+                            <span className="material-symbols-rounded">arrow_back</span>
                         </button>
                         <h2 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">{t('editProfile')}</h2>
                         <div className="w-11 h-11 opacity-0"></div>
@@ -145,8 +145,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         return (
             <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-32 p-6">
                 <div className="flex items-center justify-between mb-8">
-                    <button onClick={() => setActiveSection('main')} className="w-11 h-11 rounded-2xl glass-panel flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-indigo-500 transition-colors">
-                        <span className="material-symbols-rounded">chevron_left</span>
+                    <button onClick={() => setActiveSection('main')} className="w-11 h-11 rounded-3xl glass-card flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-indigo-500 transition-all">
+                        <span className="material-symbols-rounded">arrow_back</span>
                     </button>
                     <h2 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{t('security')}</h2>
                     <div className="w-11 h-11 opacity-0"></div>
@@ -188,8 +188,8 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-32 animate-in fade-in slide-in-from-left-4 duration-300">
             <div className="p-6">
                 <div className="flex items-center justify-between mb-8">
-                    <button onClick={onBack} className="w-11 h-11 rounded-2xl glass-panel flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-indigo-500 transition-all">
-                        <span className="material-symbols-rounded">chevron_left</span>
+                    <button onClick={onBack} className="w-11 h-11 rounded-3xl glass-card flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-indigo-500 transition-all">
+                        <span className="material-symbols-rounded">arrow_back</span>
                     </button>
                     <h2 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">{t('profile')}</h2>
                     <div className="w-11 h-11 opacity-0"></div>

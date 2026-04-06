@@ -40,6 +40,7 @@ export const en = {
     content: 'Write something...',
     home: 'Home',
     settings: 'Settings',
+    all: 'All',
     allNotes: 'All Notes',
     archived: 'Archived',
     favorites: 'Favorites',

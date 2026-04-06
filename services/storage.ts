@@ -15,33 +15,39 @@ const ENCRYPTION_SALT = import.meta.env.VITE_ENCRYPTION_SALT;
  * expensive 100,000-iteration computation on every save/decrypt call.
  */
 let _cachedCryptoKey: CryptoKey | null = null;
+let _cryptoKeyPromise: Promise<CryptoKey> | null = null;
 
 const getCryptoKey = async (): Promise<CryptoKey> => {
     if (_cachedCryptoKey) return _cachedCryptoKey;
+    if (_cryptoKeyPromise) return _cryptoKeyPromise;
 
-    const encoder = new TextEncoder();
-    const baseKey = await window.crypto.subtle.importKey(
-        "raw",
-        encoder.encode(ENCRYPTION_KEY),
-        { name: "PBKDF2" },
-        false,
-        ["deriveKey"]
-    );
+    _cryptoKeyPromise = (async () => {
+        const encoder = new TextEncoder();
+        const baseKey = await window.crypto.subtle.importKey(
+            "raw",
+            encoder.encode(ENCRYPTION_KEY),
+            { name: "PBKDF2" },
+            false,
+            ["deriveKey"]
+        );
 
-    _cachedCryptoKey = await window.crypto.subtle.deriveKey(
-        {
-            name: "PBKDF2",
-            salt: encoder.encode(ENCRYPTION_SALT),
-            iterations: 100000,
-            hash: "SHA-256"
-        },
-        baseKey,
-        { name: "AES-GCM", length: 256 },
-        false,
-        ["encrypt", "decrypt"]
-    );
+        const key = await window.crypto.subtle.deriveKey(
+            {
+                name: "PBKDF2",
+                salt: encoder.encode(ENCRYPTION_SALT),
+                iterations: 100000,
+                hash: "SHA-256"
+            },
+            baseKey,
+            { name: "AES-GCM", length: 256 },
+            false,
+            ["encrypt", "decrypt"]
+        );
+        _cachedCryptoKey = key;
+        return key;
+    })();
 
-    return _cachedCryptoKey;
+    return _cryptoKeyPromise;
 };
 
 const encryptData = async (data: string): Promise<{ iv: number[], cipher: number[] }> => {

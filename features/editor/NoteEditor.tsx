@@ -299,12 +299,19 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
                         <span className="material-symbols-rounded" style={{ fontVariationSettings: note.isPinned ? "'FILL' 1" : "'FILL' 0" }}>push_pin</span>
                     </button>
                     
+                    <button 
+                        onClick={onBack}
+                        className="w-11 h-11 rounded-3xl glass-card flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-all active:scale-90"
+                    >
+                        <span className="material-symbols-rounded">arrow_back</span>
+                    </button>
+                    
                     <div className="relative">
                         <button 
                             onClick={() => setShowMenu(!showMenu)}
                             className={`w-11 h-11 rounded-2xl glass-panel flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-indigo-500 transition-colors ${showMenu ? 'bg-black/10 dark:bg-white/10' : ''}`}
                         >
-                            <span className="material-symbols-rounded">more_horiz</span>
+                            <span className="material-symbols-rounded text-lg">more_horiz</span>
                         </button>
                         
                         {showMenu && (

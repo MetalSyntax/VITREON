@@ -42,6 +42,7 @@ export const pt: typeof en = {
     content: 'Escreva algo...',
     home: 'Início',
     settings: 'Configurações',
+    all: 'Todos',
     allNotes: 'Todas as Notas',
     archived: 'Arquivadas',
     favorites: 'Favoritas',

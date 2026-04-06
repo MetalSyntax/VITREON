@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Note, Category } from '../../types';
 import { NoteCard } from '../../components/notes/NoteCard';
 import { useI18n } from '../../services/i18n';
+import { useDragAndDrop } from "@formkit/drag-and-drop/react";
 
 interface HomeViewProps {
     notes: Note[];
@@ -12,6 +13,7 @@ interface HomeViewProps {
     showArchived: boolean;
     onToggleArchive: () => void;
     selectedCategory: string | null;
+    onSelectCategory: (id: string | null) => void;
     onClearCategory: () => void;
     onPinNote: (note: Note) => void;
     onReorderNotes: (reorderedNotes: Note[]) => void;
@@ -35,7 +37,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     showTrash, onToggleTrash,
     onRestoreNote, onDeleteNote, onEmptyTrash,
     onUpdateNote,
-    selectedCategory, onClearCategory,
+    selectedCategory, onSelectCategory, onClearCategory,
     onPinNote, onReorderNotes,
     onBulkAction,
 }) => {
@@ -44,8 +46,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const [isListening, setIsListening] = useState(false);
     const [sortBy, setSortBy] = useState<'date' | 'alpha'>(localStorage.getItem('vitreon_sort') as any || 'date');
     const [layoutMode, setLayoutMode] = useState<'grid' | 'list' | 'card'>(localStorage.getItem('vitreon_layout') as any || 'grid');
-    const [draggedId, setDraggedId] = useState<string | null>(null);
-    const [dropId, setDropId] = useState<string | null>(null);
     const [toastMsg, setToastMsg] = useState<string | null>(null);
 
     // --- Bulk Selection State ---
@@ -60,39 +60,56 @@ export const HomeView: React.FC<HomeViewProps> = ({
         setTimeout(() => setToastMsg(null), 3000);
     };
 
-    // --- Filtering ---
-    let filtered = [...notes];
-    
-    filtered.sort((a, b) => {
-        if (sortBy === 'alpha') return a.title.localeCompare(b.title);
-        const orderA = a.order ?? 0;
-        const orderB = b.order ?? 0;
-        if (orderA !== orderB) return orderB - orderA;
-        return b.updatedAt - a.updatedAt;
+    // --- Filtering & Sorting ---
+    const getFilteredList = (sourceNotes: Note[]) => {
+        let filtered = [...sourceNotes];
+        
+        filtered.sort((a, b) => {
+            if (sortBy === 'alpha') return (a.title || "").localeCompare(b.title || "");
+            const orderA = a.order ?? 0;
+            const orderB = b.order ?? 0;
+            if (orderA !== orderB) return orderB - orderA;
+            return b.updatedAt - a.updatedAt;
+        });
+
+        if (showFavorites) {
+            filtered = filtered.filter(n => n.isPinned && !n.deletedAt);
+        } else if (showArchived) {
+            filtered = filtered.filter(n => n.isArchived && !n.deletedAt);
+        } else if (showTrash) {
+            filtered = filtered.filter(n => !!n.deletedAt);
+        } else {
+            filtered = filtered.filter(n => !n.isArchived && !n.deletedAt);
+            if (selectedCategory) {
+                filtered = filtered.filter(n => n.category === selectedCategory);
+            }
+        }
+        
+        if (searchQuery) {
+            filtered = filtered.filter(n => 
+                (n.title || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+                (!n.isLocked && (n.content || "").toLowerCase().includes(searchQuery.toLowerCase()))
+            );
+        }
+        return filtered;
+    };
+
+    const allFiltered = getFilteredList(notes);
+    const pinned = (!showFavorites && !showArchived && !showTrash) ? allFiltered.filter(n => n.isPinned) : [];
+    const mainFiltered = (!showFavorites && !showArchived && !showTrash) ? allFiltered.filter(n => !n.isPinned) : allFiltered;
+
+    // --- Drag and Drop with FormKit ---
+    const [parent, mainList, setMainList] = useDragAndDrop<HTMLDivElement, Note>(mainFiltered, {
+        disabled: selectMode || !!searchQuery || sortBy === 'alpha' || showFavorites || showArchived || showTrash,
+        onDragend: (data) => {
+            onReorderNotes(data.values);
+        },
     });
 
-    if (showFavorites) {
-        filtered = filtered.filter(n => n.isPinned && !n.deletedAt);
-    } else if (showArchived) {
-        filtered = filtered.filter(n => n.isArchived && !n.deletedAt);
-    } else if (showTrash) {
-        filtered = filtered.filter(n => !!n.deletedAt);
-    } else {
-        filtered = filtered.filter(n => !n.isArchived && !n.deletedAt);
-        if (selectedCategory) {
-            filtered = filtered.filter(n => n.category === selectedCategory);
-        }
-    }
-    
-    if (searchQuery) {
-        filtered = filtered.filter(n => 
-            n.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-            (!n.isLocked && n.content.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
-    }
-
-    const pinned = (!showFavorites && !showArchived && !showTrash) ? filtered.filter(n => n.isPinned) : [];
-    const mainList = (!showFavorites && !showArchived && !showTrash) ? filtered.filter(n => !n.isPinned) : filtered;
+    // Update DnD list when filtering changes
+    useEffect(() => {
+        setMainList(mainFiltered);
+    }, [notes, searchQuery, selectedCategory, showFavorites, showArchived, showTrash, sortBy, setMainList]);
 
     const toggleSort = () => {
         const next = sortBy === 'date' ? 'alpha' : 'date';
@@ -124,36 +141,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
             setSearchQuery(transcript);
         };
         recognition.start();
-    };
-
-    const handleDragStart = (e: React.DragEvent, id: string) => {
-        setDraggedId(id);
-        e.dataTransfer.effectAllowed = 'move';
-    };
-
-    const handleDragOver = (e: React.DragEvent, id: string) => {
-        e.preventDefault();
-        if (draggedId === null || draggedId === id) return;
-        setDropId(id);
-    };
-
-    const handleDrop = (e: React.DragEvent, targetId: string) => {
-        e.preventDefault();
-        if (draggedId === null || draggedId === targetId) {
-            setDraggedId(null);
-            setDropId(null);
-            return;
-        }
-        const currentList = [...mainList];
-        const draggedIndex = currentList.findIndex(n => n.id === draggedId);
-        const targetIndex = currentList.findIndex(n => n.id === targetId);
-        if (draggedIndex !== -1 && targetIndex !== -1) {
-            const [item] = currentList.splice(draggedIndex, 1);
-            currentList.splice(targetIndex, 0, item);
-            onReorderNotes(currentList);
-        }
-        setDraggedId(null);
-        setDropId(null);
     };
 
     // --- Bulk Selection Handlers ---
@@ -318,66 +305,84 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
             )}
 
-            {/* ── Search bar ── */}
-            <div className="px-6 mb-8 stagger-1 flex items-center gap-4">
-                <div className="relative group flex-1">
-                    <span className="absolute left-5 top-4 material-symbols-rounded text-slate-400 group-focus-within:text-indigo-500 transition-colors">search</span>
+            {/* ── Integrated Search bar ── */}
+            <div className="px-6 mb-8 stagger-1">
+                <div className="relative group flex items-center glass-card bg-white dark:bg-white/5 rounded-[28px] shadow-xl transition-all focus-within:ring-2 focus-within:ring-indigo-500/30 overflow-hidden">
+                    <span className="pl-5 material-symbols-rounded text-slate-400 group-focus-within:text-indigo-500 transition-colors">search</span>
+                    
                     <input
-                        type="text" placeholder={t('search')}
-                        value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-4 pr-4 py-4 rounded-3xl glass-card bg-white dark:bg-white/5 border-none focus:ring-2 focus:ring-indigo-500/30 text-slate-800 dark:text-white placeholder-slate-400 outline-none transition-all shadow-xl"
+                        type="text" 
+                        placeholder={t('search')}
+                        value={searchQuery} 
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="flex-1 min-w-0 bg-transparent border-none py-4 px-3 text-slate-800 dark:text-white placeholder-slate-400 outline-none"
                     />
+
+                    {/* Integrated Action Buttons */}
+                    <div className={`flex items-center gap-1 shrink-0 pr-1 transition-all duration-300 ${searchQuery ? 'opacity-0 pointer-events-none translate-x-10' : 'opacity-100'}`}>
+                        <button 
+                            onClick={toggleSort}
+                            className="w-10 h-10 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-all active:scale-90 shrink-0"
+                            title={sortBy === 'date' ? t('date') : t('alphabetical')}
+                        >
+                            <span className="material-symbols-rounded text-xl">{sortBy === 'date' ? 'calendar_today' : 'sort_by_alpha'}</span>
+                        </button>
+                        <button 
+                            onClick={nextLayout}
+                            className="w-10 h-10 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-all active:scale-90 shrink-0"
+                            title={t(layoutMode as any)}
+                        >
+                            <span className="material-symbols-rounded text-xl">{layoutMode === 'grid' ? 'grid_view' : layoutMode === 'list' ? 'view_list' : 'view_agenda'}</span>
+                        </button>
+                        <button
+                            onClick={selectMode ? exitSelectMode : enterSelectMode}
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-90 shrink-0
+                                ${selectMode
+                                    ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
+                                    : 'hover:bg-black/5 dark:hover:bg-white/5 text-slate-500 hover:text-indigo-500'}`}
+                            title={t('selectNotes')}
+                        >
+                            <span className="material-symbols-rounded text-xl" style={{ fontVariationSettings: selectMode ? "'FILL' 1" : "'FILL' 0" }}>
+                                checklist
+                            </span>
+                        </button>
+                    </div>
+
                     <button 
                         onClick={startVoiceSearch}
-                        className={`absolute right-5 top-4 material-symbols-rounded text-slate-400 hover:text-indigo-500 cursor-pointer transition-colors ${isListening ? 'text-red-500 animate-pulse' : ''}`}
+                        className={`pr-4 material-symbols-rounded text-slate-400 hover:text-indigo-500 cursor-pointer transition-colors shrink-0 ${isListening ? 'text-red-500 animate-pulse' : ''}`}
                     >
                         mic
                     </button>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button 
-                        onClick={toggleSort}
-                        className="w-12 h-12 rounded-2xl glass-card bg-white dark:bg-white/5 flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-all shadow-lg active:scale-95"
-                        title={sortBy === 'date' ? t('date') : t('alphabetical')}
-                    >
-                        <span className="material-symbols-rounded">{sortBy === 'date' ? 'calendar_today' : 'sort_by_alpha'}</span>
-                    </button>
-                    <button 
-                        onClick={nextLayout}
-                        className="w-12 h-12 rounded-2xl glass-card bg-white dark:bg-white/5 flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-all shadow-lg active:scale-95"
-                        title={t(layoutMode as any)}
-                    >
-                        <span className="material-symbols-rounded">{layoutMode === 'grid' ? 'grid_view' : layoutMode === 'list' ? 'view_list' : 'view_agenda'}</span>
-                    </button>
-                    {/* Select Mode toggle */}
-                    <button
-                        onClick={selectMode ? exitSelectMode : enterSelectMode}
-                        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-lg active:scale-95
-                            ${selectMode
-                                ? 'bg-indigo-500 text-white shadow-indigo-500/30'
-                                : 'glass-card bg-white dark:bg-white/5 text-slate-500 hover:text-indigo-500'}`}
-                        title={t('selectNotes')}
-                    >
-                        <span className="material-symbols-rounded" style={{ fontVariationSettings: selectMode ? "'FILL' 1" : "'FILL' 0" }}>
-                            checklist
-                        </span>
-                    </button>
-                </div>
             </div>
 
-            {selectedCategory && (
-                <div className="px-6 mb-6 stagger-1">
-                    <div className={`glass-card rounded-2xl p-4 flex items-center justify-between border-l-4 border-${currentCat?.color || 'slate'}-500`}>
-                        <div className="flex items-center gap-3">
-                            <span className="material-symbols-rounded text-indigo-500">{currentCat?.icon || 'folder'}</span>
-                            <span className="font-bold text-slate-700 dark:text-white">{t('collection')}: {getCategoryName(currentCat?.id, currentCat?.name) || t('unknown')}</span>
-                        </div>
-                        <button onClick={onClearCategory} className="w-8 h-8 rounded-full hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors">
-                            <span className="material-symbols-rounded">close</span>
-                        </button>
-                    </div>
-                </div>
-            )}
+            {/* ── Category Filter Bar ── */}
+            <div className="px-6 mb-8 stagger-2 overflow-x-auto no-scrollbar flex items-center gap-3">
+                <button 
+                    onClick={() => onSelectCategory(null)}
+                    className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all shrink-0 border-2 font-bold text-xs uppercase tracking-widest
+                        ${!selectedCategory 
+                            ? 'bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/30' 
+                            : 'glass-card bg-white dark:bg-white/5 border-transparent text-slate-500 hover:border-indigo-500/30'}`}
+                >
+                    <span className="material-symbols-rounded text-[18px]">apps</span>
+                    {t('all' as any)}
+                </button>
+                {categories.map(cat => (
+                    <button 
+                        key={cat.id}
+                        onClick={() => onSelectCategory(cat.id)}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all shrink-0 border-2 font-bold text-xs uppercase tracking-widest
+                            ${selectedCategory === cat.id 
+                                ? `bg-${cat.color}-500 border-${cat.color}-500 text-white shadow-lg shadow-${cat.color}-500/30` 
+                                : `glass-card bg-white dark:bg-white/5 border-transparent text-slate-500 hover:border-${cat.color}-500/30`}`}
+                    >
+                        <span className="material-symbols-rounded text-[18px]">{cat.icon}</span>
+                        {getCategoryName(cat.id, cat.name)}
+                    </button>
+                ))}
+            </div>
 
             {!showFavorites && !showArchived && pinned.length > 0 && (
                 <div className="mb-8 stagger-2">
@@ -414,11 +419,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <h2 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">
                         {showFavorites ? t('favorites') : showArchived ? t('archived') : showTrash ? t('trash') : t('allNotes')}
                     </h2>
-                    {showTrash && filtered.length > 0 && (
+                    {showTrash && allFiltered.length > 0 && (
                         <p className="text-sm text-slate-500 mt-1">{t('trashMessage')}</p>
                     )}
                 </div>
-                {showTrash && filtered.length > 0 && (
+                {showTrash && allFiltered.length > 0 && (
                     <button 
                         onClick={onEmptyTrash}
                         className="px-4 py-2 rounded-xl bg-red-500/10 text-red-500 text-xs font-bold uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
@@ -429,20 +434,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 )}
             </div>
             
-            <div className={`
-                px-6 pb-20 stagger-4 w-full
-                ${layoutMode === 'grid' ? 'columns-2 gap-4' : 'flex flex-col gap-3'}
-                ${layoutMode === 'card' ? 'max-w-2xl mx-auto w-full' : ''}
-            `}>
+            <div 
+                ref={parent}
+                className={`
+                    px-6 pb-20 stagger-4 w-full
+                    ${layoutMode === 'grid' ? 'columns-2 gap-4' : 'flex flex-col gap-3'}
+                    ${layoutMode === 'card' ? 'max-w-2xl mx-auto w-full' : ''}
+                `}
+            >
                 {mainList.map((note) => (
                     <div 
                         key={note.id}
-                        draggable={!selectMode && !searchQuery && sortBy === 'date' && !showFavorites && !showArchived}
                         data-note-id={note.id}
-                        onDragStart={(e) => handleDragStart(e, note.id)}
-                        onDragOver={(e) => handleDragOver(e, note.id)}
-                        onDrop={(e) => handleDrop(e, note.id)}
-                        onDragEnd={() => { setDraggedId(null); setDropId(null); }}
                         className={`relative w-full ${layoutMode === 'grid' ? 'inline-block break-inside-avoid mb-4' : ''}`}
                     >
                         {/* Selection checkbox overlay */}
@@ -458,7 +461,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             </button>
                         )}
                         <div
-                            className={`transition-all duration-200 ${selectMode && selectedIds.has(note.id) ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-transparent rounded-[32px] opacity-90' : ''}`}
+                            className={`transition-all duration-200 ${selectMode && selectedIds.has(note.id) ? 'ring-2 ring-indigo-500 ring-offset-2 ring-offset-transparent rounded-[32px] opacity-90 transition-none' : ''}`}
                             onClick={selectMode ? () => toggleSelectNote(note.id) : undefined}
                         >
                             <NoteCard 
@@ -472,14 +475,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         </div>
                     </div>
                 ))}
-                {mainList.length === 0 && !pinned.length && (
-                    <div className="col-span-full flex flex-col items-center justify-center py-20 opacity-30">
-                        <span className="material-symbols-rounded text-6xl mb-4 text-slate-400">stylus_note</span>
-                        <p className="text-slate-500 dark:text-slate-400 font-medium text-center">
-                            {t('noNotes')}
-                        </p>
-                    </div>
-                )}
             </div>
 
             {toastMsg && (
@@ -490,6 +485,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
     );
 };
+
 
 // ── Small helper component for bulk action buttons ──
 const BulkActionBtn: React.FC<{

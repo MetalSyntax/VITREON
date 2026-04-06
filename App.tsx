@@ -523,7 +523,7 @@ export default function App() {
     };
 
     const handleDeleteCategory = (id: string) => {
-        if (id === DEFAULT_CATEGORY || CATEGORIES(t).some(c => c.id === id)) {
+        if (id === DEFAULT_CATEGORY) {
             showToast(t('categoryDeleteError'));
             return;
         }
@@ -572,10 +572,10 @@ export default function App() {
             <div className="relative z-10 w-full max-w-7xl mx-auto h-[100dvh] overflow-hidden md:border-x border-white/5 flex flex-col">
                 {/* Dashboard Header */}
                 {(view !== 'editor' && view !== 'profile') && (
-                    <div className="flex items-center justify-between px-6 py-6 z-20">
+                    <header className="flex items-center justify-between px-6 py-6 z-20 glass-panel">
                         <div 
                             onClick={() => setView('profile')}
-                            className="w-11 h-11 rounded-2xl glass-card flex items-center justify-center cursor-pointer overflow-hidden group hover:border-indigo-500/50 transition-all"
+                            className="w-11 h-11 rounded-3xl glass-card flex items-center justify-center cursor-pointer overflow-hidden group hover:border-indigo-500/50 transition-all"
                         >
                              {profileImage ? (
                                  <img src={profileImage} alt="Profile" className="w-[120%] h-[120%] object-cover" />
@@ -588,11 +588,11 @@ export default function App() {
                         </h1>
                         <button 
                             onClick={() => { setShowArchived(!showArchived); setShowFavorites(false); setShowTrash(false); setView('home'); }}
-                            className={`w-11 h-11 rounded-2xl glass-card flex items-center justify-center cursor-pointer transition-all ${showArchived ? 'bg-indigo-500 text-white border-indigo-500' : 'text-slate-600 dark:text-slate-300'}`}
+                            className={`w-11 h-11 rounded-3xl glass-card flex items-center justify-center cursor-pointer transition-all ${showArchived ? 'bg-indigo-500 text-white border-indigo-500' : 'text-slate-600 dark:text-slate-300'}`}
                         >
                             <span className="material-symbols-rounded">{showArchived ? 'unarchive' : 'archive'}</span>
                         </button>
-                    </div>
+                    </header>
                 )}
 
                 <div className="flex-1 overflow-hidden relative">
@@ -604,7 +604,9 @@ export default function App() {
                             showTrash={showTrash} onToggleTrash={() => { setShowTrash(!showTrash); setShowFavorites(false); setShowArchived(false); setSelectedCategory(null); }}
                             onRestoreNote={handleRestoreNote}
                             onEmptyTrash={() => setConfirmModal({ open: true, isEmptyTrash: true, isPermanent: true })}
-                            selectedCategory={selectedCategory} onClearCategory={() => setSelectedCategory(null)}
+                            selectedCategory={selectedCategory} 
+                            onSelectCategory={setSelectedCategory}
+                            onClearCategory={() => setSelectedCategory(null)}
                             onPinNote={handlePinNote}
                             onDeleteNote={handleDeleteNote}
                             onUpdateNote={handleSaveNote}
@@ -669,7 +671,7 @@ export default function App() {
                 </div>
 
                 {(view !== 'editor' && view !== 'profile') && (
-                    <div className="h-20 absolute bottom-0 left-0 right-0 glass-blur rounded-t-[40px] flex items-center justify-around px-8 z-20 border-t border-white/5 animate-in slide-in-from-bottom-8">
+                    <div className="h-20 absolute bottom-0 left-0 right-0 glass-blur rounded-t-[40px] flex items-center justify-around px-8 z-20 border-t border-white/5 animate-in slide-in-from-bottom-8 z-1000">
                         <button onClick={() => {setView('home'); setShowFavorites(false); setShowArchived(false); setShowTrash(false);}} className={`p-3 rounded-2xl transition-all ${view === 'home' && !showFavorites && !showArchived && !showTrash ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
                             <span className="material-symbols-rounded text-2xl" style={{ fontVariationSettings: view === 'home' && !showFavorites && !showArchived && !showTrash ? "'FILL' 1" : "'FILL' 0" }}>home</span>
                         </button>

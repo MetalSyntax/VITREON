@@ -35,7 +35,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl">
                 {/* Appearance Section */}
-                <div className="glass-panel p-8 rounded-[40px]  stagger-1 hover:border-indigo-500/30 transition-all">
+                <div className="glass-card p-8 rounded-[40px] stagger-1 hover:border-indigo-500/30 transition-all">
                     <div className="flex items-center gap-4 mb-8">
                         <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center shadow-inner">
                             <span className="material-symbols-rounded text-3xl">palette</span>
@@ -69,7 +69,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
 
                 {/* Language Section */}
-                <div className="glass-panel p-8 rounded-[40px]  stagger-2 hover:border-emerald-500/30 transition-all">
+                <div className="glass-card p-8 rounded-[40px] stagger-2 hover:border-emerald-500/30 transition-all">
                     <div className="flex items-center gap-4 mb-8">
                         <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center shadow-inner">
                             <span className="material-symbols-rounded text-3xl">language</span>
@@ -94,7 +94,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 </div>
 
                 {/* Data Management Section */}
-                <div className="glass-panel p-8 rounded-[40px]  stagger-3 lg:col-span-2 hover:border-purple-500/30 transition-all">
+                <div className="glass-card p-8 rounded-[40px] stagger-3 lg:col-span-2 hover:border-purple-500/30 transition-all">
                     <div className="flex items-center gap-4 mb-8">
                         <div className="w-14 h-14 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center shadow-inner">
                             <span className="material-symbols-rounded text-3xl">database</span>
