@@ -134,7 +134,7 @@ export const pt: typeof en = {
     markdownBundle: 'PACOTE MD',
     markdownFile: 'MARKDOWN',
     appInfo: 'Artesanal para Performance e Privacidade',
-    version: 'Vitreon Notes Elite v2.2',
+    version: 'Vitreon Notes Elite v1.2.0',
     // New Keys
     masterPinUpdated: 'PIN Mestre atualizado.',
     biometricsNotSupported: 'Biometria (FaceID/Digital) não disponível neste dispositivo ou navegador.',

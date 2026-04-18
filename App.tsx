@@ -557,11 +557,7 @@ export default function App() {
     if (isLoading) return <div className="min-h-screen flex items-center justify-center bg-[var(--bg-app)]"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div></div>;
 
     return (
-        <div className={`min-h-screen w-full transition-colors duration-500 ${
-            theme === 'black' ? 'bg-black text-white' : 
-            theme === 'dark' ? 'bg-[#0f172a] text-white' : 
-            'bg-[#f0f4f8] text-slate-900'
-        }`}>
+        <div className="min-h-screen w-full transition-colors duration-500 bg-[var(--bg-app)] text-[var(--text-primary)]">
             {theme !== 'black' && (
                 <div className="fixed inset-0 z-0 pointer-events-none">
                     <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-purple-500/20 filter blur-[100px] opacity-50 animate-pulse"></div>

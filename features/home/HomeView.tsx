@@ -217,7 +217,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return (
         <div 
             onClick={handleBackgroundClick}
-            className="flex flex-col h-full overflow-y-auto no-scrollbar overscroll-contain touch-pan-y pb-40 pt-2 transition-colors animate-in fade-in duration-500"
+            className="flex flex-col h-full overflow-y-auto no-scrollbar overscroll-contain touch-pan-y pb-40 pt-0 bg-[var(--bg-app)] transition-colors animate-in fade-in duration-500"
         >
 
             {/* ── Bulk Selection Toolbar ── */}
@@ -330,10 +330,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
             )}
 
             {/* ── Sticky Header (Search & Categories) ── */}
-            <div className="sticky top-0 z-30 bg-[var(--bg-app)] transition-colors pt-2 pb-1">
+            <div className="sticky top-0 z-30 bg-[var(--bg-app)]/90 backdrop-blur-xl transition-colors pt-2 pb-1">
                 {/* ── Integrated Search bar ── */}
                 <div className="px-6 mb-4 stagger-1">
-                    <div className="relative group flex items-center glass-card bg-white dark:bg-white/5 rounded-[28px] shadow-xl transition-all focus-within:ring-2 focus-within:ring-indigo-500/30 overflow-hidden">
+                    <div className="relative group flex items-center glass-card rounded-[28px] shadow-xl transition-all focus-within:ring-2 focus-within:ring-indigo-500/30 overflow-hidden">
                         <span className="pl-5 material-symbols-rounded text-slate-400 group-focus-within:text-indigo-500 transition-colors">search</span>
                         
                         <input
@@ -390,7 +390,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all shrink-0 border-2 font-bold text-xs uppercase tracking-widest
                             ${!selectedCategory 
                                 ? 'bg-indigo-500 border-indigo-500 text-white shadow-lg shadow-indigo-500/30' 
-                                : 'glass-card bg-white dark:bg-white/5 border-transparent text-slate-500 hover:border-indigo-500/30'}`}
+                                : 'glass-card border-transparent text-slate-500 hover:border-indigo-500/30'}`}
                     >
                         <span className="material-symbols-rounded text-[18px]">apps</span>
                         {t('all' as any)}
@@ -402,7 +402,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             className={`flex items-center gap-2 px-5 py-2.5 rounded-full transition-all shrink-0 border-2 font-bold text-xs uppercase tracking-widest
                                 ${selectedCategory === cat.id 
                                     ? `bg-${cat.color}-500 border-${cat.color}-500 text-white shadow-lg shadow-${cat.color}-500/30` 
-                                    : `glass-card bg-white dark:bg-white/5 border-transparent text-slate-500 hover:border-${cat.color}-500/30`}`}
+                                    : `glass-card border-transparent text-slate-500 hover:border-${cat.color}-500/30`}`}
                         >
                             <span className="material-symbols-rounded text-[18px]">{cat.icon}</span>
                             {getCategoryName(cat.id, cat.name)}
