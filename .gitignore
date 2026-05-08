@@ -27,3 +27,4 @@ dist-ssr
 *.sw?
 wireframes
 vitreon*.json
+vitreon*.md

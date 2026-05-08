@@ -1,4 +1,4 @@
-# 🖋️ Vitreon Notes v1.2.0
+# 🖋️ Vitreon Notes v1.3.0
 
 **A Premium, Secure, and Elegant Markdown Note-Taking Experience**
 
@@ -23,7 +23,9 @@
 
 - **Unified Search Bar:** Redesigned search input that embeds Sort, Layout, and Select-Mode buttons for a cleaner mobile experience.
 - **Category Filter Bar:** Horizontal, scrollable filter bar with icons for instant collection switching.
-- **Advanced Bulk Actions:** Select multiple notes to change categories, pin, or delete in one go.
+- **Advanced Bulk Actions:** Select multiple notes to change categories, pin, delete, or export in one go.
+- **Smart Data Portability:** Support for the `.vitreon` open JSON schema for full app state transfers.
+- **Conflict Management:** Intelligence deduplication engine prevents note clashing during imports.
 
 ### 🎨 Premium Experience
 
@@ -72,15 +74,15 @@ pnpm cypress:run   # Run UI Consistency and Load stress tests
 
 ## 📊 Changelog
 
-### v1.2.0 (Current)
+### v1.3.0 (Current)
 
-- **Mobile UX Overhaul**: Integrated search bar controls and horizontal category filter for better narrow-screen usability.
-- **Pro Reordering**: Switched to `@formkit/drag-and-drop` for robust touch interactions.
-- **Performance Fix**: Resolved "thundering herd" decryption bottleneck (Promise caching).
-- **Testing Suite**: Implemented Cypress (Design System Audit) and Jest (Performance Benchmarks).
-- **Refined Aesthetics**: Standardized 24px border-radius and expanded icon library to 50+ options.
+- **Smart Import Deduplication**: Introduced deterministic fingerprinting (`title + createdAt`) to prevent duplicate notes on re-import.
+- **Conflict Resolution UI**: Interactive glassmorphic modal for manual resolution of import conflicts (Keep Local, Replace, Keep Both).
+- **GDPR Compliance Layer**: Comprehensive privacy controls including a consent banner, detailed Privacy Policy modal, and explicit "Right to be Forgotten" (Delete All Data) flow.
+- **Power User Shortcuts**: Full keyboard navigation support with `Ctrl+N`, `Ctrl+S`, `Ctrl+F`, and `Esc` shortcuts.
+- **.vitreon Support**: Native support for the `.vitreon` extension for both backups and restores.
 
-### v1.1.0
+### v1.2.0
 
 - **Google Drive Integration Refactor**: Migrated from outdated `gapi` to native `fetch`.
 - **Drive Backup History Modal**: Daily backup history support.

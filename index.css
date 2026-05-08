@@ -53,6 +53,12 @@ body {
   @apply transition-colors duration-300;
   background: var(--bg-app);
   color: var(--text-primary);
+  outline: none;
+}
+
+*:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 4px;
 }
 
 .dark body {

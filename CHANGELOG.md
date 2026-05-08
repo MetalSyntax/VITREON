@@ -2,6 +2,15 @@
 
 All notable changes to **Vitreon Notes** will be documented in this file.
 
+## [1.3.0] - 2026-05-08
+
+### Added
+- **Smart Import Deduplication**: Introduced deterministic fingerprinting (`title + createdAt`) to prevent duplicate notes on re-import.
+- **Conflict Resolution UI**: Interactive glassmorphic modal for manual resolution of import conflicts (Keep Local, Replace, Keep Both).
+- **GDPR Compliance Layer**: Comprehensive privacy controls including a consent banner, detailed Privacy Policy modal, and explicit "Right to be Forgotten" (Delete All Data) flow.
+- **Keyboard Power User Mode**: Implemented global shortcuts (`Ctrl+N`, `Ctrl+S`, `Ctrl+F`, `Esc`) and enhanced accessibility with ARIA metadata and `:focus-visible` styles.
+- **.vitreon Support**: Standardized data portability with the new `.vitreon` extension, now supported for both Export and Import operations.
+
 ## [1.2.0] - 2026-04-05
 
 ### Added

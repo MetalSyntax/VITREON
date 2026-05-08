@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { Note, Category, ThemeMode } from './types';
-import { saveNote, getNotes, deleteNote, exportDataToJSON, importDataFromJSON, cleanupTrash } from './services/storage';
+import { APP_VERSION, CHANGELOG_ENTRIES, ChangelogEntry } from './constants';
+import { saveNote, getNotes, deleteNote, exportDataToJSON, importDataFromJSON, cleanupTrash, analyzeImport, ImportAnalysis } from './services/storage';
 import { initGoogleDrive, syncToGoogleDrive, downloadFromGoogleDrive, listGoogleDriveBackups } from './services/googleDrive';
 import { GDriveModal } from './components/modals/GDriveModal';
 import { PinModal } from './components/modals/PinModal';
 import { ConfirmModal } from './components/modals/ConfirmModal';
+import { ConflictResolutionModal, ResolutionAction } from './components/modals/ConflictResolutionModal';
+import { WhatsNewModal } from './components/modals/WhatsNewModal';
+import { GDPRBanner } from './components/GDPRBanner';
+import { PrivacyPolicyModal } from './components/modals/PrivacyPolicyModal';
+import { DeleteAllDataModal } from './components/modals/DeleteAllDataModal';
 import { HomeView } from './features/home/HomeView';
 import { NoteEditor } from './features/editor/NoteEditor';
 import { CategoriesView } from './features/categories/CategoriesView';
@@ -55,6 +61,12 @@ export default function App() {
     const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(!localStorage.getItem('vitreon_onboarded'));
     const [showGDPR, setShowGDPR] = useState<boolean>(!localStorage.getItem('vitreon_accepted_gdpr'));
     const [gdriveModal, setGdriveModal] = useState<{ open: boolean, files: any[] }>({ open: false, files: [] });
+    const [importConflict, setImportConflict] = useState<{ open: boolean, analysis: ImportAnalysis | null }>({ open: false, analysis: null });
+    const [showWhatsNew, setShowWhatsNew] = useState(false);
+    const [relevantChangelogs, setRelevantChangelogs] = useState<ChangelogEntry[]>([]);
+    const [showGDPRBanner, setShowGDPRBanner] = useState(!localStorage.getItem('vitreon_consent_given'));
+    const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+    const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
     // Initial Load
     useEffect(() => {
@@ -63,6 +75,22 @@ export default function App() {
             const stored = await getNotes();
             setNotes(stored);
             setIsLoading(false);
+
+            // Check for new version
+            const lastVersion = localStorage.getItem('vitreon_last_seen_version');
+            if (lastVersion !== APP_VERSION) {
+                const relevant = CHANGELOG_ENTRIES.filter(entry => {
+                    if (!lastVersion) return entry.version === APP_VERSION;
+                    // Simple version comparison (can be improved if needed)
+                    return entry.version > lastVersion;
+                });
+                if (relevant.length > 0) {
+                    setRelevantChangelogs(relevant);
+                    setShowWhatsNew(true);
+                } else {
+                    localStorage.setItem('vitreon_last_seen_version', APP_VERSION);
+                }
+            }
             
             const savedTheme = localStorage.getItem('vitreon_theme') as ThemeMode;
             if (!savedTheme && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
@@ -71,6 +99,44 @@ export default function App() {
         };
         load();
     }, []);
+
+    // Global Keyboard Shortcuts
+    useEffect(() => {
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            // New Note: Ctrl + N
+            if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+                e.preventDefault();
+                if (view !== 'editor') {
+                    const newNote: Note = {
+                        id: crypto.randomUUID(),
+                        title: '',
+                        content: '',
+                        category: selectedCategory || DEFAULT_CATEGORY,
+                        isPinned: false, isArchived: false, isLocked: false, isChecklist: false,
+                        tags: [], images: [], drawings: [], voiceNotes: [], attachments: [],
+                        createdAt: Date.now(), updatedAt: Date.now()
+                    };
+                    setCurrentNote(newNote);
+                    setView('editor');
+                }
+            }
+            // Focus Search: Ctrl + F
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f' && view === 'home') {
+                e.preventDefault();
+                document.getElementById('search-input')?.focus();
+            }
+            // Close / Back: Escape
+            if (e.key === 'Escape') {
+                if (view === 'editor') {
+                    setView('home');
+                } else if (view !== 'home') {
+                    setView('home');
+                }
+            }
+        };
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, [view, selectedCategory]);
 
     useEffect(() => {
         document.documentElement.classList.remove('light', 'dark', 'black');
@@ -180,9 +246,14 @@ export default function App() {
             setConfirmModal({ open: false });
             try {
                 ensureCategoriesFromJson(content);
-                const count = await importDataFromJSON(content);
-                setNotes(await getNotes());
-                showToast(t('importedNotes').replace('{count}', String(count)));
+                const analysis = await analyzeImport(content);
+                if (analysis.conflicts.length > 0) {
+                    setImportConflict({ open: true, analysis });
+                } else {
+                    const count = await importDataFromJSON(content);
+                    setNotes(await getNotes());
+                    showToast(t('importedNotes').replace('{count}', String(count)));
+                }
             } catch { showToast(t('importFailed')); }
             return;
         } else if (confirmModal.isEmptyTrash) {
@@ -400,6 +471,28 @@ export default function App() {
         }
     };
 
+    const handleBulkExport = async (ids: string[]) => {
+        const targetNotes = notes.filter(n => ids.includes(n.id));
+        if (targetNotes.length === 0) return;
+        
+        try {
+            const json = await exportDataToJSON(targetNotes);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `vitreon_export_${new Date().toISOString().slice(0, 10)}.vitreon`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast(t('exported'));
+        } catch (e) {
+            console.error(e);
+            showToast(t('importFailed'));
+        }
+    };
+
     const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
@@ -431,6 +524,59 @@ export default function App() {
             e.target.value = '';
         };
         reader.readAsText(file);
+    };
+
+    const handleResolveConflicts = async (resolutions: Record<string, ResolutionAction>) => {
+        const analysis = importConflict.analysis;
+        if (!analysis) return;
+
+        setIsLoading(true);
+        setImportConflict({ open: false, analysis: null });
+
+        try {
+            let importedCount = analysis.notesToImport.length;
+            // 1. Save non-conflicting notes
+            for (const note of analysis.notesToImport) {
+                await saveNote(note);
+            }
+
+            // 2. Save conflicting notes based on resolution
+            for (const conflict of analysis.conflicts) {
+                const id = conflict.incoming.importId!;
+                const resolution = resolutions[id];
+
+                if (resolution === 'replace') {
+                    const toSave = { ...conflict.incoming, id: conflict.local.id };
+                    await saveNote(toSave);
+                    importedCount++;
+                } else if (resolution === 'keep-both') {
+                    const toSave = { ...conflict.incoming, id: crypto.randomUUID() };
+                    await saveNote(toSave);
+                    importedCount++;
+                }
+                // 'keep-local' does nothing
+            }
+
+            setNotes(await getNotes());
+            showToast(t('importedNotes').replace('{count}', String(importedCount)));
+        } catch (e) {
+            console.error(e);
+            showToast(t('importFailed'));
+        }
+        setIsLoading(false);
+    };
+
+    const handleDeleteAllData = async () => {
+        setIsLoading(true);
+        try {
+            const { clearAllData } = await import('./services/storage');
+            await clearAllData();
+            window.location.reload();
+        } catch (e) {
+            console.error(e);
+            showToast(t('error'));
+            setIsLoading(false);
+        }
     };
 
 
@@ -607,6 +753,7 @@ export default function App() {
                             onDeleteNote={handleDeleteNote}
                             onUpdateNote={handleSaveNote}
                             onBulkAction={handleBulkAction}
+                            onExport={handleBulkExport}
                             onReorderNotes={async (reordered) => {
                                 // 1. Update local state immediately for snappy UI
                                 const total = reordered.length;
@@ -627,12 +774,14 @@ export default function App() {
                     {view === 'settings' && (
                         <SettingsView 
                             theme={theme} setTheme={setTheme} 
-                            onExport={() => { exportDataToJSON().then(json => { const blob = new Blob([json], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `vitreon_backup_${new Date().toISOString().slice(0, 10)}.json`; a.click(); showToast(t('exported')); }); }} 
+                            onExport={() => { exportDataToJSON().then(json => { const blob = new Blob([json], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `vitreon_backup_${new Date().toISOString().slice(0, 10)}.vitreon`; a.click(); showToast(t('exported')); }); }} 
                             onImport={handleImport} 
                             onExportMD={handleExportMarkdown}
                             onImportMD={() => document.getElementById('md-import')?.click()}
                             onExportGDrive={handleExportGDrive}
                             onImportGDrive={handleImportGDrive}
+                            onShowPrivacy={() => setShowPrivacyModal(true)}
+                            onDeleteAllData={() => setShowDeleteAllModal(true)}
                         />
                     )}
                     {view === 'profile' && (
@@ -714,7 +863,7 @@ export default function App() {
                 cancelText={t('cancel')}
                 type={confirmModal.isImport ? 'info' : 'danger'}
             />
-            <input type="file" id="md-import" className="hidden" accept=".md,.json" onChange={handleImport} />
+            <input type="file" id="md-import" className="hidden" accept=".md,.json,.vitreon" onChange={handleImport} />
             <GDPRModal 
                 isOpen={showGDPR} 
                 onAccept={() => {
@@ -729,6 +878,38 @@ export default function App() {
                 files={gdriveModal.files} 
                 onClose={() => setGdriveModal({ open: false, files: [] })}
                 onSelect={(fileId) => processGDriveImport(fileId)}
+            />
+            <ConflictResolutionModal 
+                isOpen={importConflict.open} 
+                conflicts={importConflict.analysis?.conflicts || []} 
+                onResolve={handleResolveConflicts}
+                onCancel={() => setImportConflict({ open: false, analysis: null })}
+            />
+            <WhatsNewModal 
+                isOpen={showWhatsNew} 
+                entries={relevantChangelogs} 
+                onClose={() => {
+                    setShowWhatsNew(false);
+                    localStorage.setItem('vitreon_last_seen_version', APP_VERSION);
+                }} 
+            />
+            {showGDPRBanner && (
+                <GDPRBanner 
+                    onAccept={() => {
+                        setShowGDPRBanner(false);
+                        localStorage.setItem('vitreon_consent_given', 'true');
+                    }}
+                    onLearnMore={() => setShowPrivacyModal(true)}
+                />
+            )}
+            <PrivacyPolicyModal 
+                isOpen={showPrivacyModal} 
+                onClose={() => setShowPrivacyModal(false)} 
+            />
+            <DeleteAllDataModal 
+                isOpen={showDeleteAllModal}
+                onConfirm={handleDeleteAllData}
+                onCancel={() => setShowDeleteAllModal(false)}
             />
         </div>
     );

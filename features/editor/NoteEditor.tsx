@@ -109,12 +109,25 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({
     const audioRef = useRef<HTMLAudioElement | null>(null);
 
     useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Save: Ctrl + S
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                onSave(note, true);
+            }
+            // Back: Escape
+            if (e.key === 'Escape' && !isDrawingOpen && !isVoiceOpen) {
+                onBack();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
         return () => {
+            window.removeEventListener('keydown', handleKeyDown);
             if (audioRef.current) {
                 audioRef.current.pause();
             }
         };
-    }, []);
+    }, [note, onSave, onBack, isDrawingOpen, isVoiceOpen]);
 
     // Initial Migration for legacy notes
     useEffect(() => {

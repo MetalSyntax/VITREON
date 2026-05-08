@@ -11,10 +11,13 @@ interface SettingsViewProps {
     onImportMD: () => void;
     onExportGDrive: () => void;
     onImportGDrive: () => void;
+    onShowPrivacy: () => void;
+    onDeleteAllData: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({ 
-    theme, setTheme, onExport, onImport, onExportMD, onImportMD, onExportGDrive, onImportGDrive 
+    theme, setTheme, onExport, onImport, onExportMD, onImportMD, onExportGDrive, onImportGDrive,
+    onShowPrivacy, onDeleteAllData
 }) => {
     const { t, lang, setLang } = useI18n();
     const [showGDrive, setShowGDrive] = React.useState(false);
@@ -143,7 +146,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                     <div className="font-bold text-slate-700 dark:text-slate-200 text-sm">{t('importJson')}</div>
                                     <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{t('restoreData')}</div>
                                 </div>
-                                <input type="file" className="hidden" accept=".json" onChange={onImport} />
+                                <input type="file" className="hidden" accept=".json,.vitreon" onChange={onImport} />
                             </label>
                         </div>
 
@@ -170,6 +173,44 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                                 </button>
                             </div>
                         )}
+                    </div>
+                </div>
+
+                {/* GDPR & Privacy Section */}
+                <div className="glass-card p-8 rounded-[40px] stagger-4 lg:col-span-2 border-2 border-transparent hover:border-blue-500/30 transition-all bg-gradient-to-br from-transparent to-blue-500/5">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-500 flex items-center justify-center shadow-inner">
+                                <span className="material-symbols-rounded text-3xl">gavel</span>
+                            </div>
+                            <div>
+                                <h3 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight leading-none">{t('privacyCompliance')}</h3>
+                                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">{t('gdprRights')}</p>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-3">
+                            <button 
+                                onClick={onShowPrivacy}
+                                className="px-6 py-3 rounded-2xl bg-white/5 border border-white/10 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-white/10 transition-all flex items-center gap-2"
+                            >
+                                <span className="material-symbols-rounded text-lg">policy</span>
+                                {t('privacyPolicy')}
+                            </button>
+                            <button 
+                                onClick={onExport}
+                                className="px-6 py-3 rounded-2xl bg-indigo-500/10 text-indigo-500 font-bold text-xs hover:bg-indigo-500/20 transition-all flex items-center gap-2"
+                            >
+                                <span className="material-symbols-rounded text-lg">download</span>
+                                {t('exportMyData')}
+                            </button>
+                            <button 
+                                onClick={onDeleteAllData}
+                                className="px-6 py-3 rounded-2xl bg-red-500/10 text-red-500 font-bold text-xs hover:bg-red-500/20 transition-all flex items-center gap-2"
+                            >
+                                <span className="material-symbols-rounded text-lg">delete_forever</span>
+                                {t('deleteAllData')}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

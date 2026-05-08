@@ -23,6 +23,7 @@ export interface Note {
     createdAt: number;
     updatedAt: number;
     deletedAt?: number;
+    importId?: string;
 }
 
 export interface Category {

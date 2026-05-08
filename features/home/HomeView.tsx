@@ -28,6 +28,7 @@ interface HomeViewProps {
         action: 'pin' | 'unpin' | 'archive' | 'delete' | 'changeCategory' | 'addTags',
         payload?: string | string[]
     ) => Promise<void>;
+    onExport: (ids: string[]) => void;
 }
 
 export const HomeView: React.FC<HomeViewProps> = ({ 
@@ -39,7 +40,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     onUpdateNote,
     selectedCategory, onSelectCategory, onClearCategory,
     onPinNote, onReorderNotes,
-    onBulkAction,
+    onBulkAction, onExport,
 }) => {
     const { t, lang, getCategoryName } = useI18n();
     const [searchQuery, setSearchQuery] = useState('');
@@ -252,6 +253,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                 <BulkActionBtn disabled={!selectedIds.size || isProcessing} icon="cancel_presentation" label={t('bulkUnpin')} color="slate" onClick={() => execBulkAction('unpin')} />
                                 <BulkActionBtn disabled={!selectedIds.size || isProcessing} icon="folder" label={t('bulkChangeCategory')} color="violet" onClick={() => setBulkPanel('category')} />
                                 <BulkActionBtn disabled={!selectedIds.size || isProcessing} icon="label" label="Tags" color="teal" onClick={() => setBulkPanel('tags')} />
+                                <BulkActionBtn disabled={!selectedIds.size || isProcessing} icon="cloud_download" label="Export" color="emerald" onClick={() => { onExport(Array.from(selectedIds)); exitSelectMode(); }} />
                                 <BulkActionBtn disabled={!selectedIds.size || isProcessing} icon="archive" label={t('bulkArchive')} color="amber" onClick={() => execBulkAction('archive')} />
                                 <BulkActionBtn disabled={!selectedIds.size || isProcessing} icon="delete" label={t('bulkDelete')} color="red" onClick={() => execBulkAction('delete')} />
                             </div>
@@ -337,11 +339,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <span className="pl-5 material-symbols-rounded text-slate-400 group-focus-within:text-indigo-500 transition-colors">search</span>
                         
                         <input
+                            id="search-input"
                             type="text" 
                             placeholder={t('search')}
                             value={searchQuery} 
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="flex-1 min-w-0 bg-transparent border-none py-4 px-3 text-slate-800 dark:text-white placeholder-slate-400 outline-none"
+                            aria-label={t('search')}
                         />
 
                         {/* Integrated Action Buttons */}
@@ -350,6 +354,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                 onClick={toggleSort}
                                 className="w-10 h-10 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-all active:scale-90 shrink-0"
                                 title={sortBy === 'date' ? t('date') : t('alphabetical')}
+                                aria-label={sortBy === 'date' ? t('date') : t('alphabetical')}
                             >
                                 <span className="material-symbols-rounded text-xl">{sortBy === 'date' ? 'calendar_today' : 'sort_by_alpha'}</span>
                             </button>
@@ -357,6 +362,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                 onClick={nextLayout}
                                 className="w-10 h-10 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-all active:scale-90 shrink-0"
                                 title={t(layoutMode as any)}
+                                aria-label={t(layoutMode as any)}
                             >
                                 <span className="material-symbols-rounded text-xl">{layoutMode === 'grid' ? 'grid_view' : layoutMode === 'list' ? 'view_list' : 'view_agenda'}</span>
                             </button>
@@ -367,6 +373,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
                                         ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30'
                                         : 'hover:bg-black/5 dark:hover:bg-white/5 text-slate-500 hover:text-indigo-500'}`}
                                 title={t('selectNotes')}
+                                aria-label={t('selectNotes')}
+                                aria-pressed={selectMode}
                             >
                                 <span className="material-symbols-rounded text-xl" style={{ fontVariationSettings: selectMode ? "'FILL' 1" : "'FILL' 0" }}>
                                     checklist
@@ -377,6 +385,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         <button 
                             onClick={startVoiceSearch}
                             className={`pr-4 material-symbols-rounded text-slate-400 hover:text-indigo-500 cursor-pointer transition-colors shrink-0 ${isListening ? 'text-red-500 animate-pulse' : ''}`}
+                            aria-label={t('voiceSearch')}
                         >
                             mic
                         </button>
