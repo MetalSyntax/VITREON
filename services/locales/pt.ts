@@ -117,6 +117,10 @@ export const pt: typeof en = {
     sortBy: 'Ordenar por',
     date: 'Data',
     alphabetical: 'Alfabético',
+    sortNewest: 'Mais Recente',
+    sortOldest: 'Mais Antigo',
+    sortAZ: 'Título (A-Z)',
+    sortZA: 'Título (Z-A)',
     view: 'Vista',
     grid: 'Grade',
     list: 'Lista',
@@ -251,4 +255,7 @@ export const pt: typeof en = {
     h_120_2_desc: 'Reorganize suas notas com um novo mecanismo de arrastar e soltar otimizado para toque.',
     h_120_3_title: 'Layouts Dinâmicos',
     h_120_3_desc: 'Alterne entre visualizações em Grade, Lista e Cartão para combinar com seu estilo de produtividade.',
+    otherNotes: 'Outras notas',
+    pinnedCarousel: 'Vista carrossel',
+    pinnedGrid: 'Vista grade',
 };

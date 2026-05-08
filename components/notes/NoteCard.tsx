@@ -44,47 +44,28 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onL
 
     return (
         <div 
-            onMouseDown={startPress}
-            onMouseUp={cancelPress}
-            onMouseLeave={cancelPress}
-            onTouchStart={startPress}
-            onTouchEnd={cancelPress}
-            onContextMenu={(e) => {
-                if (isLongPressActive.current) e.preventDefault();
-            }}
-            onClick={(e) => {
-                cancelPress();
-                if (isLongPressActive.current) {
-                    isLongPressActive.current = false;
-                    return;
-                }
-                const selection = window.getSelection()?.toString();
-                if (selection) return; 
-                onClick();
-            }}
             className={`glass-card rounded-[32px] cursor-default p-0 overflow-hidden relative group transition-all hover:scale-[1.02] active:scale-[0.98] shrink-0
             ${isCarousel ? 'snap-start w-[280px] h-64' : ''}
             ${isList ? 'flex flex-row items-center h-24 mb-2 w-full' : ''}
             ${isCard ? 'flex flex-col h-auto mb-4 w-full' : ''}
             ${layout === 'grid' ? 'flex flex-col h-auto' : ''} border border-${category?.color || 'slate'}-500/20`}
         >
-            <div className={`absolute inset-0 bg-${category?.color || 'slate'}-500/5 pointer-events-none mix-blend-multiply dark:mix-blend-screen`}></div>
-            
-            {/* Quick Pin Toggle */}
+            {/* Action Buttons Overlay - Completely separate from clickable area */}
             {onPin && !note.deletedAt && (
                 <button 
-                    onClick={(e) => { e.stopPropagation(); onPin(); }}
-                    className={`absolute top-4 right-4 z-10 w-9 h-9 rounded-full backdrop-blur-xl border border-white/20 flex items-center justify-center transition-all 
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onPin(); }}
+                    className={`absolute top-4 right-4 z-[100] w-9 h-9 rounded-full backdrop-blur-xl border border-white/20 flex items-center justify-center transition-all 
                     ${note.isPinned 
                         ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/30' 
                         : 'bg-black/10 dark:bg-white/10 text-white opacity-0 group-hover:opacity-100'}`}
                 >
-                    <span className="material-symbols-rounded text-[1.2rem]" style={{ fontVariationSettings: note.isPinned ? "'FILL' 1" : "'FILL' 0" }}>push_pin</span>
+                    <span className="material-symbols-rounded text-[1.2rem] pointer-events-none" style={{ fontVariationSettings: note.isPinned ? "'FILL' 1" : "'FILL' 0" }}>push_pin</span>
                 </button>
             )}
 
             {note.deletedAt && (
-                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity p-4">
+                <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px] z-[100] flex flex-col items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity p-4">
                     <button 
                         onClick={(e) => { e.stopPropagation(); onRestore?.(); }}
                         className="w-full py-2.5 rounded-2xl bg-indigo-500 text-white font-bold flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all text-sm"
@@ -101,6 +82,31 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onL
                     </button>
                 </div>
             )}
+
+            {/* CLICKABLE AREA */}
+            <div 
+                className="w-full h-full relative z-10"
+                onMouseDown={startPress}
+                onMouseUp={cancelPress}
+                onMouseLeave={cancelPress}
+                onTouchStart={startPress}
+                onTouchEnd={cancelPress}
+                onContextMenu={(e) => {
+                    if (isLongPressActive.current) e.preventDefault();
+                }}
+                onClick={(e) => {
+                    if ((e.target as HTMLElement).closest('button')) return;
+                    cancelPress();
+                    if (isLongPressActive.current) {
+                        isLongPressActive.current = false;
+                        return;
+                    }
+                    const selection = window.getSelection()?.toString();
+                    if (selection) return; 
+                    onClick();
+                }}
+            >
+                <div className={`absolute inset-0 bg-${category?.color || 'slate'}-500/5 pointer-events-none mix-blend-multiply dark:mix-blend-screen`}></div>
 
             {note.isLocked ? (
                 <div className={`flex items-center justify-center text-slate-500 ${isList ? 'w-full' : (layout === 'grid' ? 'h-auto py-12 flex-col' : 'h-full py-12 flex-col')}`}>
@@ -159,7 +165,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onL
                                                 drag_indicator
                                             </span>
                                             <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest shrink-0">
-                                                {new Date(note.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric'})}
+                                                {new Date(note.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric'})}
                                             </span>
                                             {note.isArchived && (
                                                 <span className="flex items-center gap-1 text-[9px] font-black uppercase tracking-tighter px-1.5 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
@@ -188,6 +194,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onL
                                                             else lines[idx] = '[x] ' + text;
                                                             onUpdate?.({ ...note, content: lines.join('\n'), updatedAt: Date.now() });
                                                         }}
+                                                        onMouseDown={(e) => e.stopPropagation()}
                                                         className={`w-4 h-4 rounded-md border transition-all flex items-center justify-center shrink-0 ${isChecked ? `bg-${category?.color || 'indigo'}-500 border-${category?.color || 'indigo'}-500` : 'border-slate-300 dark:border-slate-600'}`}
                                                     >
                                                         {isChecked && <span className="material-symbols-rounded text-white text-[10px] font-bold">check</span>}
@@ -239,6 +246,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({ note, category, onClick, onL
                     </div>
                 </div>
             )}
+            </div>
         </div>
     );
 };

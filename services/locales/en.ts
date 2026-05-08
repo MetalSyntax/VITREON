@@ -115,6 +115,10 @@ export const en = {
     sortBy: 'Sort by',
     date: 'Date',
     alphabetical: 'Alphabetical',
+    sortNewest: 'Newest First',
+    sortOldest: 'Oldest First',
+    sortAZ: 'Title (A-Z)',
+    sortZA: 'Title (Z-A)',
     view: 'View',
     grid: 'Grid',
     list: 'List',
@@ -249,4 +253,7 @@ export const en = {
     h_120_2_desc: 'Reorganize your notes with a brand-new, touch-optimized drag-and-drop engine.',
     h_120_3_title: 'Dynamic Layouts',
     h_120_3_desc: 'Switch between Grid, List, and Card views to match your personal productivity style.',
+    otherNotes: 'Other Notes',
+    pinnedCarousel: 'Carousel View',
+    pinnedGrid: 'Grid View',
 };

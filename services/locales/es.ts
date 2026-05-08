@@ -117,6 +117,10 @@ export const es: typeof en = {
     sortBy: 'Ordenar por',
     date: 'Fecha',
     alphabetical: 'Alfabético',
+    sortNewest: 'Más Reciente',
+    sortOldest: 'Más Antiguo',
+    sortAZ: 'Título (A-Z)',
+    sortZA: 'Título (Z-A)',
     view: 'Vista',
     grid: 'Cuadrícula',
     list: 'Lista',
@@ -251,4 +255,7 @@ export const es: typeof en = {
     h_120_2_desc: 'Reorganiza tus notas con un nuevo motor de arrastrar y soltar optimizado para pantallas táctiles.',
     h_120_3_title: 'Diseños Dinámicos',
     h_120_3_desc: 'Cambia entre vistas de Cuadrícula, Lista y Tarjeta para adaptarte a tu estilo de productividad.',
+    otherNotes: 'Otras notas',
+    pinnedCarousel: 'Vista carrusel',
+    pinnedGrid: 'Vista cuadrícula',
 };

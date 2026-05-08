@@ -45,9 +45,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const { t, lang, getCategoryName } = useI18n();
     const [searchQuery, setSearchQuery] = useState('');
     const [isListening, setIsListening] = useState(false);
-    const [sortBy, setSortBy] = useState<'date' | 'alpha'>(localStorage.getItem('vitreon_sort') as any || 'date');
+    const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'az' | 'za'>(() => {
+        const saved = localStorage.getItem('vitreon_sort');
+        if (saved === 'date') return 'newest';
+        if (saved === 'alpha') return 'az';
+        return (saved as any) || 'newest';
+    });
     const [layoutMode, setLayoutMode] = useState<'grid' | 'list' | 'card'>(localStorage.getItem('vitreon_layout') as any || 'grid');
     const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+    // --- Pinned View State ---
+    const [pinnedViewMode, setPinnedViewMode] = useState<'carousel' | 'grid'>(() => {
+        return (localStorage.getItem('vitreon_pinned_view') as any) || 'grid';
+    });
+
+    useEffect(() => {
+        localStorage.setItem('vitreon_pinned_view', pinnedViewMode);
+    }, [pinnedViewMode]);
 
     // --- Bulk Selection State ---
     const [selectMode, setSelectMode] = useState(false);
@@ -65,14 +79,29 @@ export const HomeView: React.FC<HomeViewProps> = ({
     const getFilteredList = (sourceNotes: Note[]) => {
         let filtered = [...sourceNotes];
         
+        // 1. Sort Logic
         filtered.sort((a, b) => {
-            if (sortBy === 'alpha') return (a.title || "").localeCompare(b.title || "");
+            if (sortBy === 'az') return (a.title || "").localeCompare(b.title || "");
+            if (sortBy === 'za') return (b.title || "").localeCompare(a.title || "");
+            if (sortBy === 'oldest') return a.updatedAt - b.updatedAt;
+            
+            // Default: newest (includes manual order)
             const orderA = a.order ?? 0;
             const orderB = b.order ?? 0;
             if (orderA !== orderB) return orderB - orderA;
             return b.updatedAt - a.updatedAt;
         });
 
+        // 2. Search Override (Global Search)
+        if (searchQuery) {
+            // Search across ALL active/archived notes (exclude trash)
+            return filtered.filter(n => !n.deletedAt).filter(n => 
+                (n.title || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
+                (!n.isLocked && (n.content || "").toLowerCase().includes(searchQuery.toLowerCase()))
+            );
+        }
+
+        // 3. Normal View Filtering
         if (showTrash) {
             filtered = filtered.filter(n => !!n.deletedAt);
         } else {
@@ -82,6 +111,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             } else if (showArchived) {
                 filtered = filtered.filter(n => n.isArchived);
             } else if (!selectedCategory) {
+                // Default Home view: Active non-archived notes
                 filtered = filtered.filter(n => !n.isArchived);
             }
         }
@@ -89,36 +119,43 @@ export const HomeView: React.FC<HomeViewProps> = ({
         if (selectedCategory) {
             filtered = filtered.filter(n => n.category === selectedCategory);
         }
-        
-        if (searchQuery) {
-            filtered = filtered.filter(n => 
-                (n.title || "").toLowerCase().includes(searchQuery.toLowerCase()) || 
-                (!n.isLocked && (n.content || "").toLowerCase().includes(searchQuery.toLowerCase()))
-            );
-        }
+
         return filtered;
     };
 
     const allFiltered = getFilteredList(notes);
-    const pinned = (!showFavorites && !showArchived && !showTrash) ? allFiltered.filter(n => n.isPinned) : [];
-    const mainFiltered = (!showFavorites && !showArchived && !showTrash) ? allFiltered.filter(n => !n.isPinned) : allFiltered;
+    // Split pinned notes into their own grid only in default view
+    const shouldSplit = !showFavorites && !showArchived && !showTrash && !searchQuery && sortBy === 'newest';
+    const pinned = shouldSplit ? allFiltered.filter(n => n.isPinned) : [];
+    const mainFiltered = shouldSplit ? allFiltered.filter(n => !n.isPinned) : allFiltered;
 
     // --- Drag and Drop with FormKit ---
     const [parent, mainList, setMainList] = useDragAndDrop<HTMLDivElement, Note>(mainFiltered, {
         dragHandle: ".drag-handle",
-        disabled: selectMode || !!searchQuery || sortBy === 'alpha' || showFavorites || showArchived || showTrash,
+        disabled: selectMode || !!searchQuery || sortBy !== 'newest' || showFavorites || showArchived || showTrash,
         onDragend: (data) => {
             onReorderNotes(data.values);
         },
     });
 
-    // Update DnD list when filtering changes
+    const [pinnedParent, pinnedList, setPinnedList] = useDragAndDrop<HTMLDivElement, Note>(pinned, {
+        dragHandle: ".drag-handle",
+        disabled: selectMode || !!searchQuery || sortBy !== 'newest' || showFavorites || showArchived || showTrash,
+        onDragend: (data) => {
+            onReorderNotes(data.values);
+        },
+    });
+
+    // Update DnD lists when filtering changes
     useEffect(() => {
         setMainList(mainFiltered);
-    }, [notes, searchQuery, selectedCategory, showFavorites, showArchived, showTrash, sortBy, setMainList]);
+        setPinnedList(pinned);
+    }, [notes, searchQuery, selectedCategory, showFavorites, showArchived, showTrash, sortBy, setMainList, setPinnedList]);
 
     const toggleSort = () => {
-        const next = sortBy === 'date' ? 'alpha' : 'date';
+        const modes: ('newest' | 'oldest' | 'az' | 'za')[] = ['newest', 'oldest', 'az', 'za'];
+        const currentIdx = modes.indexOf(sortBy);
+        const next = modes[(currentIdx + 1) % modes.length];
         setSortBy(next);
         localStorage.setItem('vitreon_sort', next);
     };
@@ -353,10 +390,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             <button 
                                 onClick={toggleSort}
                                 className="w-10 h-10 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-all active:scale-90 shrink-0"
-                                title={sortBy === 'date' ? t('date') : t('alphabetical')}
-                                aria-label={sortBy === 'date' ? t('date') : t('alphabetical')}
+                                title={t(`sort${sortBy.charAt(0).toUpperCase()}${sortBy.slice(1)}` as any)}
+                                aria-label={t(`sort${sortBy.charAt(0).toUpperCase()}${sortBy.slice(1)}` as any)}
                             >
-                                <span className="material-symbols-rounded text-xl">{sortBy === 'date' ? 'calendar_today' : 'sort_by_alpha'}</span>
+                                <span className="material-symbols-rounded text-xl">
+                                    {sortBy === 'newest' ? 'calendar_today' : 
+                                     sortBy === 'oldest' ? 'history' : 
+                                     sortBy === 'az' ? 'sort_by_alpha' : 'sort_by_alpha'}
+                                </span>
                             </button>
                             <button 
                                 onClick={nextLayout}
@@ -420,44 +461,105 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
             </div>
 
-            {!showFavorites && !showArchived && pinned.length > 0 && (
+            {pinnedList.length > 0 && (
                 <div className="mb-8 stagger-2">
-                    <div className="px-6 mb-4">
-                        <h2 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">{t('pinnedNotes')}</h2>
+                    <div className="px-6 mb-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <span className="material-symbols-rounded text-indigo-500 text-sm">push_pin</span>
+                            <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">{t('pinnedNotes')}</h2>
+                            <div className="hidden md:block w-32 h-px bg-black/5 dark:bg-white/5 ml-2"></div>
+                        </div>
+                        
+                        <button 
+                            onClick={() => setPinnedViewMode(pinnedViewMode === 'carousel' ? 'grid' : 'carousel')}
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/5 dark:bg-white/5 hover:bg-indigo-500/10 hover:text-indigo-500 transition-all text-[10px] font-bold uppercase tracking-widest text-slate-400"
+                            title={pinnedViewMode === 'carousel' ? t('pinnedGrid') : t('pinnedCarousel')}
+                        >
+                            <span className="material-symbols-rounded text-sm">
+                                {pinnedViewMode === 'carousel' ? 'grid_view' : 'view_carousel'}
+                            </span>
+                            <span className="hidden sm:inline">{pinnedViewMode === 'carousel' ? t('grid') : 'Carousel'}</span>
+                        </button>
                     </div>
-                    <div className="flex overflow-x-auto gap-5 px-6 pb-4 no-scrollbar snap-x">
-                        {pinned.map(note => (
-                            <div
-                                key={note.id}
-                                className={`relative shrink-0 transition-all duration-200 ${selectMode ? 'cursor-pointer' : ''}`}
-                                onClick={selectMode ? () => toggleSelectNote(note.id) : undefined}
-                            >
-                                {selectMode && (
-                                    <div className={`absolute top-3 left-3 z-20 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
-                                        ${selectedIds.has(note.id)
-                                            ? 'bg-indigo-500 border-indigo-500 shadow-lg shadow-indigo-500/30'
-                                            : 'bg-black/30 border-white/40 backdrop-blur-sm'}`}
-                                    >
-                                        {selectedIds.has(note.id) && <span className="material-symbols-rounded text-white text-[14px]">check</span>}
+
+                    {pinnedViewMode === 'carousel' ? (
+                        <div className="flex overflow-x-auto gap-5 px-6 pb-4 no-scrollbar snap-x">
+                            {pinnedList.map(note => (
+                                <div
+                                    key={note.id}
+                                    className={`relative shrink-0 transition-all duration-200 ${selectMode ? 'cursor-pointer' : ''}`}
+                                    onClick={selectMode ? () => toggleSelectNote(note.id) : undefined}
+                                >
+                                    {selectMode && (
+                                        <div className={`absolute top-3 left-3 z-20 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
+                                            ${selectedIds.has(note.id)
+                                                ? 'bg-indigo-500 border-indigo-500 shadow-lg shadow-indigo-500/30'
+                                                : 'bg-black/30 border-white/40 backdrop-blur-sm'}`}
+                                        >
+                                            {selectedIds.has(note.id) && <span className="material-symbols-rounded text-white text-[14px]">check</span>}
+                                        </div>
+                                    )}
+                                    <div className={selectMode && selectedIds.has(note.id) ? 'opacity-80 ring-2 ring-indigo-500 rounded-[32px]' : ''}>
+                                        <NoteCard note={note} category={categories.find(c => c.id === note.category)} allCategories={categories} onClick={() => !selectMode && onNoteClick(note)} onLongPress={() => handleLongPress(note.id)} onPin={() => onPinNote(note)} onUpdate={onUpdateNote} layout="carousel" />
                                     </div>
-                                )}
-                                <div className={selectMode && selectedIds.has(note.id) ? 'opacity-80 ring-2 ring-indigo-500 rounded-[32px]' : ''}>
-                                    <NoteCard note={note} category={categories.find(c => c.id === note.category)} allCategories={categories} onClick={() => !selectMode && onNoteClick(note)} onLongPress={() => handleLongPress(note.id)} onPin={() => onPinNote(note)} onUpdate={onUpdateNote} layout="carousel" />
                                 </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <div 
+                            ref={pinnedParent}
+                            className={`
+                                px-6 w-full
+                                ${layoutMode === 'grid' ? 'columns-2 gap-4' : 'flex flex-col gap-3'}
+                                ${layoutMode === 'card' ? 'max-w-2xl mx-auto w-full' : ''}
+                            `}
+                        >
+                            {pinnedList.map((note) => (
+                                <div 
+                                    key={note.id}
+                                    data-note-id={note.id}
+                                    className={`relative w-full ${layoutMode === 'grid' ? 'inline-block break-inside-avoid mb-4' : ''}`}
+                                >
+                                    {/* Selection checkbox overlay */}
+                                    {selectMode && (
+                                        <button
+                                            onClick={() => toggleSelectNote(note.id)}
+                                            className={`absolute top-3 left-3 z-20 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all shadow-lg
+                                                ${selectedIds.has(note.id)
+                                                    ? 'bg-indigo-500 border-indigo-500 shadow-indigo-500/40'
+                                                    : 'bg-black/20 border-white/30 backdrop-blur-sm hover:border-indigo-400'}`}
+                                        >
+                                            {selectedIds.has(note.id) && <span className="material-symbols-rounded text-white text-[15px] font-bold">check</span>}
+                                        </button>
+                                    )}
+                                    <div
+                                        className={`transition-all duration-300 ${selectMode ? 'cursor-pointer' : ''}`}
+                                        onClick={selectMode ? () => toggleSelectNote(note.id) : undefined}
+                                    >
+                                        <div className={selectMode && selectedIds.has(note.id) ? 'opacity-80 ring-2 ring-indigo-500 rounded-[32px]' : 'h-full'}>
+                                            <NoteCard note={note} category={categories.find(c => c.id === note.category)} allCategories={categories} onClick={() => !selectMode && onNoteClick(note)} onLongPress={() => handleLongPress(note.id)} onPin={() => onPinNote(note)} onRestore={showTrash ? () => onRestoreNote(note) : undefined} onDelete={showTrash ? () => onDeleteNote(note.id) : undefined} onUpdate={onUpdateNote} layout={layoutMode} />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 
             <div className="px-6 mb-4 stagger-3 flex items-center justify-between">
-                <div>
-                    <h2 className="text-lg font-bold text-slate-800 dark:text-white tracking-tight">
-                        {showFavorites ? t('favorites') : showArchived ? t('archived') : showTrash ? t('trash') : t('allNotes')}
+                <div className="flex items-center gap-3 w-full">
+                    {pinnedList.length > 0 && <span className="material-symbols-rounded text-slate-400 text-sm">notes</span>}
+                    <h2 className="text-[11px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                        {showFavorites ? t('favorites') : showArchived ? t('archived') : showTrash ? t('trash') : (pinnedList.length > 0 ? t('otherNotes') : t('allNotes'))}
                     </h2>
-                    {showTrash && allFiltered.length > 0 && (
-                        <p className="text-sm text-slate-500 mt-1">{t('trashMessage')}</p>
-                    )}
+                    {pinnedList.length > 0 && <div className="flex-1 h-px bg-black/5 dark:bg-white/5 ml-2"></div>}
+                    
+                    <div className="ml-auto flex items-center gap-4">
+                        {showTrash && allFiltered.length > 0 && (
+                            <p className="text-sm text-slate-500">{t('trashMessage')}</p>
+                        )}
+                    </div>
                 </div>
                 {showTrash && allFiltered.length > 0 && (
                     <button 

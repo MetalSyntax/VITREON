@@ -33,9 +33,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     ] as const;
 
     return (
-        <div className="p-6 h-full overflow-y-auto no-scrollbar pb-32 animate-in fade-in duration-500">
-            <h2 className="text-3xl font-black mb-10 text-slate-800 dark:text-white tracking-tight  stagger-1">{t('settings')}</h2>
-            
+        <div className="p-6 h-full overflow-y-auto no-scrollbar pb-32 animate-in fade-in duration-500">            
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl">
                 {/* Appearance Section */}
                 <div className="glass-card p-8 rounded-[40px] stagger-1 hover:border-indigo-500/30 transition-all">

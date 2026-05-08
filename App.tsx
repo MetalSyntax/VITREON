@@ -713,27 +713,46 @@ export default function App() {
 
             <div className="relative z-10 w-full max-w-7xl mx-auto h-[100dvh] overflow-hidden md:border-x border-white/5 flex flex-col">
                 {/* Dashboard Header */}
-                {(view !== 'editor' && view !== 'profile') && (
+                {view !== 'editor' && (
                     <header className="flex items-center justify-between px-6 py-6 z-20 glass-panel">
-                        <div 
-                            onClick={() => setView('profile')}
-                            className="w-11 h-11 rounded-3xl glass-card flex items-center justify-center cursor-pointer overflow-hidden group hover:border-indigo-500/50 transition-all"
-                        >
-                             {profileImage ? (
-                                 <img src={profileImage} alt="Profile" className="w-[120%] h-[120%] object-cover" />
-                             ) : (
-                                 <span className="material-symbols-rounded text-slate-600 dark:text-slate-300 group-hover:text-indigo-400">account_circle</span>
-                             )}
+                        <div className="flex items-center gap-3">
+                            {view === 'home' && (
+                                <div className="w-10 h-10 rounded-2xl overflow-hidden shadow-lg shadow-indigo-500/20 flex items-center justify-center bg-transparent shrink-0">
+                                    <img src="/favicon.png" alt="Vitreon Logo" className="w-7 h-7 object-contain" />
+                                </div>
+                            )}
+                            <h1 className="text-xl font-bold tracking-tight text-slate-800 dark:text-white animate-in slide-in-from-top-4">
+                                {view === 'home' ? (showFavorites ? t('favorites') : showArchived ? t('archived') : showTrash ? t('trash') : t('allNotes')) : t(view as any)}
+                            </h1>
                         </div>
-                        <h1 className="text-xl font-bold tracking-tight text-slate-800 dark:text-white animate-in slide-in-from-top-4">
-                            {view === 'home' ? (showFavorites ? t('favorites') : showArchived ? t('archived') : showTrash ? t('trash') : t('allNotes')) : t(view as any)}
-                        </h1>
-                        <button 
-                            onClick={() => { setShowArchived(!showArchived); setShowFavorites(false); setShowTrash(false); setView('home'); }}
-                            className={`w-11 h-11 rounded-3xl glass-card flex items-center justify-center cursor-pointer transition-all ${showArchived ? 'bg-indigo-500 text-white border-indigo-500' : 'text-slate-600 dark:text-slate-300'}`}
-                        >
-                            <span className="material-symbols-rounded">{showArchived ? 'unarchive' : 'archive'}</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {view === 'home' && (
+                                <>
+                                    <button 
+                                        onClick={() => { setShowFavorites(!showFavorites); setShowArchived(false); setShowTrash(false); }}
+                                        className={`w-10 h-10 rounded-2xl glass-card flex items-center justify-center transition-all ${showFavorites ? 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/30' : 'text-slate-600 dark:text-slate-300'}`}
+                                        title={t('favorites')}
+                                    >
+                                        <span className="material-symbols-rounded text-xl" style={{ fontVariationSettings: showFavorites ? "'FILL' 1" : "'FILL' 0" }}>star</span>
+                                    </button>
+                                    <button 
+                                        onClick={() => { setShowArchived(!showArchived); setShowFavorites(false); setShowTrash(false); }}
+                                        className={`w-10 h-10 rounded-2xl glass-card flex items-center justify-center transition-all ${showArchived ? 'bg-indigo-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/30' : 'text-slate-600 dark:text-slate-300'}`}
+                                        title={t('archived')}
+                                    >
+                                        <span className="material-symbols-rounded text-xl" style={{ fontVariationSettings: showArchived ? "'FILL' 1" : "'FILL' 0" }}>archive</span>
+                                    </button>
+                                    <button 
+                                        onClick={() => { setShowTrash(!showTrash); setShowFavorites(false); setShowArchived(false); }}
+                                        className={`w-10 h-10 rounded-2xl glass-card flex items-center justify-center transition-all ${showTrash ? 'bg-red-500 text-white border-red-500 shadow-lg shadow-red-500/30' : 'text-slate-600 dark:text-slate-300'}`}
+                                        title={t('trash')}
+                                    >
+                                        <span className="material-symbols-rounded text-xl" style={{ fontVariationSettings: showTrash ? "'FILL' 1" : "'FILL' 0" }}>delete</span>
+                                    </button>
+                                </>
+                            )}
+                            {view !== 'home' && <div className="w-10 h-10"></div>}
+                        </div>
                     </header>
                 )}
 
@@ -815,7 +834,7 @@ export default function App() {
                     )}
                 </div>
 
-                {(view !== 'editor' && view !== 'profile') && (
+                {view !== 'editor' && (
                     <div className="h-20 absolute bottom-0 left-0 right-0 glass-blur rounded-t-[40px] flex items-center justify-around px-8 border-t border-white/5 animate-in slide-in-from-bottom-8 z-[10000]">
                         <button onClick={() => {setView('home'); setShowFavorites(false); setShowArchived(false); setShowTrash(false);}} className={`p-3 rounded-2xl transition-all ${view === 'home' && !showFavorites && !showArchived && !showTrash ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
                             <span className="material-symbols-rounded text-2xl" style={{ fontVariationSettings: view === 'home' && !showFavorites && !showArchived && !showTrash ? "'FILL' 1" : "'FILL' 0" }}>home</span>
@@ -837,8 +856,8 @@ export default function App() {
                              </button>
                         </div>
 
-                        <button onClick={() => {setShowFavorites(true); setShowArchived(false); setShowTrash(false); setView('home');}} className={`p-3 rounded-2xl transition-all ${showFavorites ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
-                            <span className="material-symbols-rounded text-2xl" style={{ fontVariationSettings: showFavorites ? "'FILL' 1" : "'FILL' 0" }}>star</span>
+                        <button onClick={() => setView('profile')} className={`p-3 rounded-2xl transition-all ${view === 'profile' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
+                            <span className="material-symbols-rounded text-2xl" style={{ fontVariationSettings: view === 'profile' ? "'FILL' 1" : "'FILL' 0" }}>person</span>
                         </button>
                         <button onClick={() => {setView('settings'); setShowFavorites(false); setShowArchived(false); setShowTrash(false);}} className={`p-3 rounded-2xl transition-all ${view === 'settings' ? 'text-indigo-400' : 'text-slate-500 hover:text-slate-300'}`}>
                             <span className="material-symbols-rounded text-2xl" style={{ fontVariationSettings: view === 'settings' ? "'FILL' 1" : "'FILL' 0" }}>settings</span>

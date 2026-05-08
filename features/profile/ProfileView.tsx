@@ -187,13 +187,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     return (
         <div className="flex flex-col h-full overflow-y-auto no-scrollbar pb-32 animate-in fade-in slide-in-from-left-4 duration-300">
             <div className="p-6">
-                <div className="flex items-center justify-between mb-8">
-                    <button onClick={onBack} className="w-11 h-11 rounded-3xl glass-card flex items-center justify-center text-slate-600 dark:text-slate-300 hover:text-indigo-500 transition-all">
-                        <span className="material-symbols-rounded">arrow_back</span>
-                    </button>
-                    <h2 className="text-sm font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em]">{t('profile')}</h2>
-                    <div className="w-11 h-11 opacity-0"></div>
-                </div>
+                {/* Header is now handled by App.tsx */}
 
                 <div className="flex flex-col items-center mb-10 animate-smooth-in">
                     <div className="relative mb-6">
@@ -242,7 +236,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                             </div>
                             <span className="material-symbols-rounded text-slate-300 group-hover:translate-x-1 transition-transform">chevron_right</span>
                         </button>
-                        <button onClick={() => setActiveSection('security')} className="w-full flex items-center justify-between p-6 hover:bg-purple-500/5 transition-all group border-b border-black/5 dark:border-white/5">
+                        <button onClick={() => setActiveSection('security')} className="w-full flex items-center justify-between p-6 hover:bg-purple-500/5 transition-all group">
                             <div className="flex items-center gap-4">
                                 <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-500 flex items-center justify-center group-hover:scale-110 transition-transform">
                                     <span className="material-symbols-rounded text-xl">security</span>
@@ -250,18 +244,6 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
                                 <div className="text-left">
                                     <div className="font-bold text-slate-700 dark:text-white text-sm">{t('security')}</div>
                                     <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{t('pinBiometrics')}</div>
-                                </div>
-                            </div>
-                            <span className="material-symbols-rounded text-slate-300 group-hover:translate-x-1 transition-transform">chevron_right</span>
-                        </button>
-                        <button onClick={onViewTrash} className="w-full flex items-center justify-between p-6 hover:bg-slate-500/5 transition-all group">
-                            <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-slate-500/10 text-slate-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                    <span className="material-symbols-rounded text-xl">delete</span>
-                                </div>
-                                <div className="text-left">
-                                    <div className="font-bold text-slate-700 dark:text-white text-sm">{t('trash')}</div>
-                                    <div className="text-[10px] text-slate-400 font-bold uppercase tracking-tight">{t('trashMessage')}</div>
                                 </div>
                             </div>
                             <span className="material-symbols-rounded text-slate-300 group-hover:translate-x-1 transition-transform">chevron_right</span>
