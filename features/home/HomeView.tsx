@@ -43,7 +43,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
     onBulkAction, onExport,
 }) => {
     const { t, lang, getCategoryName } = useI18n();
+    const [inputValue, setInputValue] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
+
+    useEffect(() => {
+        const timer = setTimeout(() => setSearchQuery(inputValue), 300);
+        return () => clearTimeout(timer);
+    }, [inputValue]);
+
     const [isListening, setIsListening] = useState(false);
     const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'az' | 'za'>(() => {
         const saved = localStorage.getItem('vitreon_sort');
@@ -181,7 +188,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         recognition.onend = () => setIsListening(false);
         recognition.onresult = (event: any) => {
             const transcript = event.results[0][0].transcript;
-            setSearchQuery(transcript);
+            setInputValue(transcript);
         };
         recognition.start();
     };
@@ -379,14 +386,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             id="search-input"
                             type="text" 
                             placeholder={t('search')}
-                            value={searchQuery} 
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            value={inputValue}
+                            onChange={(e) => setInputValue(e.target.value)}
                             className="flex-1 min-w-0 bg-transparent border-none py-4 px-3 text-slate-800 dark:text-white placeholder-slate-400 outline-none"
                             aria-label={t('search')}
                         />
 
                         {/* Integrated Action Buttons */}
-                        <div className={`flex items-center gap-1 shrink-0 pr-1 transition-all duration-300 ${searchQuery ? 'opacity-0 pointer-events-none translate-x-10' : 'opacity-100'}`}>
+                        <div className={`flex items-center gap-1 shrink-0 pr-1 transition-all duration-300 ${inputValue ? 'opacity-0 pointer-events-none translate-x-10' : 'opacity-100'}`}>
                             <button 
                                 onClick={toggleSort}
                                 className="w-10 h-10 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 flex items-center justify-center text-slate-500 hover:text-indigo-500 transition-all active:scale-90 shrink-0"

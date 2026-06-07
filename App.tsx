@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Note, Category, ThemeMode } from './types';
 import { APP_VERSION, CHANGELOG_ENTRIES, ChangelogEntry } from './constants';
-import { saveNote, getNotes, deleteNote, exportDataToJSON, importDataFromJSON, cleanupTrash, analyzeImport, ImportAnalysis } from './services/storage';
+import { saveNote, getNotes, deleteNote, exportDataToJSON, exportEncryptedVitreon, importDataFromJSON, cleanupTrash, analyzeImport, ImportAnalysis } from './services/storage';
 import { initGoogleDrive, syncToGoogleDrive, downloadFromGoogleDrive, listGoogleDriveBackups } from './services/googleDrive';
 import { GDriveModal } from './components/modals/GDriveModal';
 import { PinModal } from './components/modals/PinModal';
@@ -10,6 +10,7 @@ import { ConflictResolutionModal, ResolutionAction } from './components/modals/C
 import { WhatsNewModal } from './components/modals/WhatsNewModal';
 import { GDPRBanner } from './components/GDPRBanner';
 import { PrivacyPolicyModal } from './components/modals/PrivacyPolicyModal';
+import { TermsModal } from './components/modals/TermsModal';
 import { DeleteAllDataModal } from './components/modals/DeleteAllDataModal';
 import { HomeView } from './features/home/HomeView';
 import { NoteEditor } from './features/editor/NoteEditor';
@@ -66,6 +67,7 @@ export default function App() {
     const [relevantChangelogs, setRelevantChangelogs] = useState<ChangelogEntry[]>([]);
     const [showGDPRBanner, setShowGDPRBanner] = useState(!localStorage.getItem('vitreon_consent_given'));
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+    const [showTermsModal, setShowTermsModal] = useState(false);
     const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
 
     // Initial Load
@@ -247,12 +249,27 @@ export default function App() {
             try {
                 ensureCategoriesFromJson(content);
                 const analysis = await analyzeImport(content);
+
+                // Auto-save UUID-matched notes immediately — no prompt needed
+                let autoCount = 0;
+                for (const note of analysis.notesToUpdate) {
+                    await saveNote(note);
+                    autoCount++;
+                }
+
                 if (analysis.conflicts.length > 0) {
-                    setImportConflict({ open: true, analysis });
+                    // Pass already-applied auto-updates count into analysis for the toast
+                    setImportConflict({ open: true, analysis: { ...analysis, _autoCount: autoCount } as any });
+                    if (autoCount > 0) setNotes(await getNotes());
                 } else {
-                    const count = await importDataFromJSON(content);
+                    // Save new notes
+                    for (const note of analysis.notesToImport) {
+                        if (!note.id) note.id = crypto.randomUUID();
+                        await saveNote(note);
+                    }
+                    const total = autoCount + analysis.notesToImport.length;
                     setNotes(await getNotes());
-                    showToast(t('importedNotes').replace('{count}', String(count)));
+                    showToast(t('importedNotes').replace('{count}', String(total)));
                 }
             } catch { showToast(t('importFailed')); }
             return;
@@ -534,8 +551,9 @@ export default function App() {
         setImportConflict({ open: false, analysis: null });
 
         try {
-            let importedCount = analysis.notesToImport.length;
-            // 1. Save non-conflicting notes
+            const autoCount: number = (analysis as any)._autoCount ?? 0;
+            let importedCount = analysis.notesToImport.length + autoCount;
+            // 1. Save non-conflicting new notes (UUID-matched were already saved)
             for (const note of analysis.notesToImport) {
                 await saveNote(note);
             }
@@ -603,6 +621,41 @@ export default function App() {
         showToast(t('exportedFiles').replace('{count}', String(notesToExport.length)));
     };
 
+
+    const handleExportFormat = async (format: 'md' | 'json' | 'vitreon') => {
+        if (format === 'md') {
+            handleExportMarkdown();
+            return;
+        }
+        try {
+            const date = new Date().toISOString().slice(0, 10);
+            let content: string;
+            let filename: string;
+            let mime: string;
+            if (format === 'vitreon') {
+                content = await exportEncryptedVitreon();
+                filename = `vitreon_backup_${date}.vitreon`;
+                mime = 'application/octet-stream';
+            } else {
+                content = await exportDataToJSON();
+                filename = `vitreon_backup_${date}.json`;
+                mime = 'application/json';
+            }
+            const blob = new Blob([content], { type: mime });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast(t('exported'));
+        } catch (e) {
+            console.error(e);
+            showToast(t('importFailed'));
+        }
+    };
 
     const handleAddCategory = (cat: Category) => {
         let updated;
@@ -791,15 +844,14 @@ export default function App() {
                     )}
                     {view === 'categories' && <CategoriesView categories={categories} notes={notes} onCategoryClick={(c) => { setSelectedCategory(c.id); setView('home'); setShowFavorites(false); setShowArchived(false); }} onAddCategory={handleAddCategory} onDeleteCategory={handleDeleteCategory} />}
                     {view === 'settings' && (
-                        <SettingsView 
-                            theme={theme} setTheme={setTheme} 
-                            onExport={() => { exportDataToJSON().then(json => { const blob = new Blob([json], { type: 'application/json' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `vitreon_backup_${new Date().toISOString().slice(0, 10)}.vitreon`; a.click(); showToast(t('exported')); }); }} 
-                            onImport={handleImport} 
-                            onExportMD={handleExportMarkdown}
-                            onImportMD={() => document.getElementById('md-import')?.click()}
+                        <SettingsView
+                            theme={theme} setTheme={setTheme}
+                            onExport={handleExportFormat}
+                            onImport={handleImport}
                             onExportGDrive={handleExportGDrive}
                             onImportGDrive={handleImportGDrive}
                             onShowPrivacy={() => setShowPrivacyModal(true)}
+                            onShowTerms={() => setShowTermsModal(true)}
                             onDeleteAllData={() => setShowDeleteAllModal(true)}
                         />
                     )}
@@ -882,7 +934,6 @@ export default function App() {
                 cancelText={t('cancel')}
                 type={confirmModal.isImport ? 'info' : 'danger'}
             />
-            <input type="file" id="md-import" className="hidden" accept=".md,.json,.vitreon" onChange={handleImport} />
             <GDPRModal 
                 isOpen={showGDPR} 
                 onAccept={() => {
@@ -921,9 +972,13 @@ export default function App() {
                     onLearnMore={() => setShowPrivacyModal(true)}
                 />
             )}
-            <PrivacyPolicyModal 
-                isOpen={showPrivacyModal} 
-                onClose={() => setShowPrivacyModal(false)} 
+            <PrivacyPolicyModal
+                isOpen={showPrivacyModal}
+                onClose={() => setShowPrivacyModal(false)}
+            />
+            <TermsModal
+                isOpen={showTermsModal}
+                onClose={() => setShowTermsModal(false)}
             />
             <DeleteAllDataModal 
                 isOpen={showDeleteAllModal}

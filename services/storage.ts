@@ -255,6 +255,25 @@ export const calculateFingerprint = (note: Partial<Note>): string => {
     return `${title}|${createdAt}`;
 };
 
+const getNoteById = async (id: string): Promise<Note | null> => {
+    const db = await openDB();
+    return new Promise((resolve) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.get(id);
+        request.onsuccess = async () => {
+            const rec = request.result;
+            if (!rec) return resolve(null);
+            let title = rec.title ?? '';
+            let content = rec.content ?? '';
+            if (rec.title_enc) title = await decryptData(rec.title_enc.iv, rec.title_enc.cipher);
+            if (rec.content_enc) content = await decryptData(rec.content_enc.iv, rec.content_enc.cipher);
+            resolve({ ...rec, title, content });
+        };
+        request.onerror = () => resolve(null);
+    });
+};
+
 export const getNoteByImportId = async (importId: string): Promise<Note | null> => {
     const db = await openDB();
     return new Promise((resolve) => {
@@ -290,16 +309,39 @@ export const exportDataToJSON = async (selectedNotes?: Note[]): Promise<string> 
             importId: n.importId || calculateFingerprint(n)
         }))
     };
-    return JSON.stringify(data, null, 2);
+    const raw = JSON.stringify(data, null, 2);
+    // Collapse number-only arrays onto a single line
+    return raw.replace(/\[[\n\r ]+(-?\d[\d\n\r ,]*?\d|-?\d)[\n\r ]+\]/gs, (match) => {
+        const nums = match.replace(/[\n\r\s]+/g, '').replace(/,/g, ', ');
+        return nums;
+    });
 };
 
 export interface ImportAnalysis {
     notesToImport: Note[];
+    notesToUpdate: Note[];
     conflicts: { incoming: Note; local: Note }[];
 }
 
+export const exportEncryptedVitreon = async (selectedNotes?: Note[]): Promise<string> => {
+    const json = await exportDataToJSON(selectedNotes);
+    const encrypted = await encryptData(json);
+    return JSON.stringify({ __vitreon_encrypted__: true, iv: encrypted.iv, data: encrypted.cipher });
+};
+
+const decryptVitreonIfNeeded = async (jsonString: string): Promise<string> => {
+    try {
+        const parsed = JSON.parse(jsonString);
+        if (parsed.__vitreon_encrypted__ === true) {
+            return await decryptData(parsed.iv, parsed.data);
+        }
+    } catch { /* not JSON or not encrypted */ }
+    return jsonString;
+};
+
 export const analyzeImport = async (jsonString: string): Promise<ImportAnalysis> => {
-    const rawData = JSON.parse(jsonString);
+    const decrypted = await decryptVitreonIfNeeded(jsonString);
+    const rawData = JSON.parse(decrypted);
     let notesToImport: any[] = [];
 
     // 1. Vitreon Format
@@ -337,10 +379,9 @@ export const analyzeImport = async (jsonString: string): Promise<ImportAnalysis>
         throw new Error("Invalid format or no adaptable notes found");
     }
 
-    const analysis: ImportAnalysis = { notesToImport: [], conflicts: [] };
+    const analysis: ImportAnalysis = { notesToImport: [], notesToUpdate: [], conflicts: [] };
 
     for (const noteData of notesToImport) {
-        // Assign necessary arrays for compatibility
         const note: Note = {
             ...noteData,
             attachments: noteData.attachments || [],
@@ -351,9 +392,19 @@ export const analyzeImport = async (jsonString: string): Promise<ImportAnalysis>
             importId: noteData.importId || calculateFingerprint(noteData)
         };
 
-        const existing = await getNoteByImportId(note.importId!);
-        if (existing) {
-            analysis.conflicts.push({ incoming: note, local: existing });
+        // Primary match: UUID — same note, update in-place without conflict prompt
+        if (note.id) {
+            const existingById = await getNoteById(note.id);
+            if (existingById) {
+                analysis.notesToUpdate.push(note);
+                continue;
+            }
+        }
+
+        // Fallback: fingerprint — catches renamed notes or external imports (Google Keep)
+        const existingByFingerprint = await getNoteByImportId(note.importId!);
+        if (existingByFingerprint) {
+            analysis.conflicts.push({ incoming: note, local: existingByFingerprint });
         } else {
             analysis.notesToImport.push(note);
         }
@@ -364,15 +415,14 @@ export const analyzeImport = async (jsonString: string): Promise<ImportAnalysis>
 
 export const importDataFromJSON = async (jsonString: string): Promise<number> => {
     try {
-        const { notesToImport } = await analyzeImport(jsonString);
+        const { notesToImport, notesToUpdate } = await analyzeImport(jsonString);
         let count = 0;
-        for (let note of notesToImport) {
-            // Keep original ID if it's a Vitreon export, otherwise new UUID
-            // Actually, prompt says "create new note as before" if no matching importId.
-            // But if it's a Vitreon re-import, we might want to keep IDs.
-            // For now, let's follow the fingerprint logic.
+        for (const note of notesToUpdate) {
+            await saveNote(note);
+            count++;
+        }
+        for (const note of notesToImport) {
             if (!note.id) note.id = crypto.randomUUID();
-            
             await saveNote(note);
             count++;
         }
